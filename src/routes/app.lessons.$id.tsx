@@ -61,7 +61,23 @@ function LessonDetail() {
   const progress = data.lessonProgress[lesson.id];
 
   // Ensure "started" once the user opens the lesson
-  useMaybeStart(lesson.id, data.lessonProgress[lesson.id]?.startedAt, update);
+  const startedAt = data.lessonProgress[lesson.id]?.startedAt;
+  useEffect(() => {
+    if (startedAt) return;
+    const t = setTimeout(() => {
+      update((d) => {
+        if (d.lessonProgress[lesson.id]?.startedAt) return d;
+        return {
+          ...d,
+          lessonProgress: {
+            ...d.lessonProgress,
+            [lesson.id]: { ...d.lessonProgress[lesson.id], startedAt: Date.now() },
+          },
+        };
+      });
+    }, 200);
+    return () => clearTimeout(t);
+  }, [startedAt, lesson.id, update]);
 
   const markWord = (v: BuiltinVocab, status: WordStatus) => {
     update((d) => {
