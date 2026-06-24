@@ -5,7 +5,7 @@ import { BUILTIN_LESSONS } from "@/content/lessons";
 import { BookOpen, CheckCircle2, Circle, PlayCircle, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/app/lessons")({
+export const Route = createFileRoute("/app/lessons/")({
   component: LessonsList,
 });
 
