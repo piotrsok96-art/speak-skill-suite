@@ -9,38 +9,132 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppIndexRouteImport } from './routes/app.index'
+import { Route as AppVocabReviewRouteImport } from './routes/app.vocab-review'
+import { Route as AppProgressRouteImport } from './routes/app.progress'
+import { Route as AppLessonRouteImport } from './routes/app.lesson'
+import { Route as AppGrammarQuizRouteImport } from './routes/app.grammar-quiz'
+import { Route as AppDictionaryRouteImport } from './routes/app.dictionary'
 
+const AppRoute = AppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppIndexRoute = AppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppVocabReviewRoute = AppVocabReviewRouteImport.update({
+  id: '/vocab-review',
+  path: '/vocab-review',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProgressRoute = AppProgressRouteImport.update({
+  id: '/progress',
+  path: '/progress',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLessonRoute = AppLessonRouteImport.update({
+  id: '/lesson',
+  path: '/lesson',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppGrammarQuizRoute = AppGrammarQuizRouteImport.update({
+  id: '/grammar-quiz',
+  path: '/grammar-quiz',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDictionaryRoute = AppDictionaryRouteImport.update({
+  id: '/dictionary',
+  path: '/dictionary',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
+  '/app/dictionary': typeof AppDictionaryRoute
+  '/app/grammar-quiz': typeof AppGrammarQuizRoute
+  '/app/lesson': typeof AppLessonRoute
+  '/app/progress': typeof AppProgressRoute
+  '/app/vocab-review': typeof AppVocabReviewRoute
+  '/app/': typeof AppIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/app/dictionary': typeof AppDictionaryRoute
+  '/app/grammar-quiz': typeof AppGrammarQuizRoute
+  '/app/lesson': typeof AppLessonRoute
+  '/app/progress': typeof AppProgressRoute
+  '/app/vocab-review': typeof AppVocabReviewRoute
+  '/app': typeof AppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/app': typeof AppRouteWithChildren
+  '/app/dictionary': typeof AppDictionaryRoute
+  '/app/grammar-quiz': typeof AppGrammarQuizRoute
+  '/app/lesson': typeof AppLessonRoute
+  '/app/progress': typeof AppProgressRoute
+  '/app/vocab-review': typeof AppVocabReviewRoute
+  '/app/': typeof AppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/app'
+    | '/app/dictionary'
+    | '/app/grammar-quiz'
+    | '/app/lesson'
+    | '/app/progress'
+    | '/app/vocab-review'
+    | '/app/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/app/dictionary'
+    | '/app/grammar-quiz'
+    | '/app/lesson'
+    | '/app/progress'
+    | '/app/vocab-review'
+    | '/app'
+  id:
+    | '__root__'
+    | '/'
+    | '/app'
+    | '/app/dictionary'
+    | '/app/grammar-quiz'
+    | '/app/lesson'
+    | '/app/progress'
+    | '/app/vocab-review'
+    | '/app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AppRoute: typeof AppRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/app': {
+      id: '/app'
+      path: '/app'
+      fullPath: '/app'
+      preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +142,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/app/': {
+      id: '/app/'
+      path: '/'
+      fullPath: '/app/'
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/vocab-review': {
+      id: '/app/vocab-review'
+      path: '/vocab-review'
+      fullPath: '/app/vocab-review'
+      preLoaderRoute: typeof AppVocabReviewRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/progress': {
+      id: '/app/progress'
+      path: '/progress'
+      fullPath: '/app/progress'
+      preLoaderRoute: typeof AppProgressRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/lesson': {
+      id: '/app/lesson'
+      path: '/lesson'
+      fullPath: '/app/lesson'
+      preLoaderRoute: typeof AppLessonRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/grammar-quiz': {
+      id: '/app/grammar-quiz'
+      path: '/grammar-quiz'
+      fullPath: '/app/grammar-quiz'
+      preLoaderRoute: typeof AppGrammarQuizRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/dictionary': {
+      id: '/app/dictionary'
+      path: '/dictionary'
+      fullPath: '/app/dictionary'
+      preLoaderRoute: typeof AppDictionaryRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppRouteChildren {
+  AppDictionaryRoute: typeof AppDictionaryRoute
+  AppGrammarQuizRoute: typeof AppGrammarQuizRoute
+  AppLessonRoute: typeof AppLessonRoute
+  AppProgressRoute: typeof AppProgressRoute
+  AppVocabReviewRoute: typeof AppVocabReviewRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppDictionaryRoute: AppDictionaryRoute,
+  AppGrammarQuizRoute: AppGrammarQuizRoute,
+  AppLessonRoute: AppLessonRoute,
+  AppProgressRoute: AppProgressRoute,
+  AppVocabReviewRoute: AppVocabReviewRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AppRoute: AppRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
