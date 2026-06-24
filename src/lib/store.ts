@@ -11,8 +11,7 @@ export interface Word {
   meaning: string;
   example: string;
   addedAt: number;
-  // SRS
-  box: number; // 1..5
+  box: number;
   nextReview: number;
 }
 
@@ -43,10 +42,46 @@ export interface GrammarRule {
 
 export interface QuizResult {
   id: string;
-  type: "vocab" | "grammar";
+  type: "vocab" | "grammar" | "lesson";
   score: number;
   total: number;
   at: number;
+  lessonId?: string;
+}
+
+export type WordStatus = "known" | "learning";
+
+export interface SrsItem {
+  key: string;
+  en: string;
+  ipa: string;
+  plPron: string;
+  pl: string;
+  example: string;
+  source: string; // lessonId or 'custom'
+  dueAt: number;
+  intervalDays: number;
+  ease: number; // SM-2 ease factor
+  reps: number;
+  addedAt: number;
+}
+
+export interface StreakState {
+  current: number;
+  longest: number;
+  lastActiveDay: string; // YYYY-MM-DD
+  dailyGoal: number;
+  todayCount: number;
+  todayDay: string;
+}
+
+export interface LessonProgress {
+  startedAt?: number;
+  completedAt?: number;
+  quizScore?: number;
+  quizTotal?: number;
+  savedVocab?: boolean;
+  savedIdioms?: boolean;
 }
 
 export interface ProfileData {
@@ -55,7 +90,21 @@ export interface ProfileData {
   idioms: Idiom[];
   grammarRules: GrammarRule[];
   results: QuizResult[];
+  wordStatus: Record<string, WordStatus>;
+  srs: Record<string, SrsItem>;
+  streak: StreakState;
+  lessonProgress: Record<string, LessonProgress>;
+  customLessons?: unknown[];
 }
+
+const defaultStreak = (): StreakState => ({
+  current: 0,
+  longest: 0,
+  lastActiveDay: "",
+  dailyGoal: 20,
+  todayCount: 0,
+  todayDay: "",
+});
 
 const empty = (): ProfileData => ({
   lessons: [],
@@ -63,7 +112,24 @@ const empty = (): ProfileData => ({
   idioms: [],
   grammarRules: [],
   results: [],
+  wordStatus: {},
+  srs: {},
+  streak: defaultStreak(),
+  lessonProgress: {},
 });
+
+function normalize(d: Partial<ProfileData> | null | undefined): ProfileData {
+  const base = empty();
+  if (!d) return base;
+  return {
+    ...base,
+    ...d,
+    wordStatus: { ...base.wordStatus, ...(d.wordStatus ?? {}) },
+    srs: { ...base.srs, ...(d.srs ?? {}) },
+    streak: { ...base.streak, ...(d.streak ?? {}) },
+    lessonProgress: { ...base.lessonProgress, ...(d.lessonProgress ?? {}) },
+  };
+}
 
 const KEY = (p: ProfileId) => `englishApp:${p}`;
 const ACTIVE = "englishApp:active";
@@ -73,7 +139,7 @@ function loadLocal(p: ProfileId): ProfileData {
   try {
     const raw = localStorage.getItem(KEY(p));
     if (!raw) return empty();
-    return { ...empty(), ...JSON.parse(raw) };
+    return normalize(JSON.parse(raw));
   } catch {
     return empty();
   }
@@ -87,7 +153,6 @@ function saveLocal(p: ProfileId, data: ProfileData) {
   }
 }
 
-// --- Cloud sync ---
 async function fetchCloud(p: ProfileId): Promise<ProfileData | null> {
   const { data, error } = await supabase
     .from("profile_data")
@@ -99,7 +164,7 @@ async function fetchCloud(p: ProfileId): Promise<ProfileData | null> {
     return null;
   }
   if (!data) return null;
-  return { ...empty(), ...((data.data as unknown as ProfileData) ?? {}) };
+  return normalize(data.data as Partial<ProfileData>);
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -161,12 +226,10 @@ export function useProfileData(p: ProfileId | null) {
     if (!p) return;
     let cancelled = false;
 
-    // 1) Hydrate from local cache immediately
     const local = loadLocal(p);
     setData(local);
     latestRef.current = local;
 
-    // 2) Fetch from cloud, merge & update
     fetchCloud(p).then((cloud) => {
       if (cancelled || !cloud) return;
       saveLocal(p, cloud);
@@ -174,7 +237,6 @@ export function useProfileData(p: ProfileId | null) {
       setData(cloud);
     });
 
-    // 3) Subscribe to realtime changes for this profile
     const channel = supabase
       .channel(`profile_data:${p}`)
       .on(
@@ -186,10 +248,9 @@ export function useProfileData(p: ProfileId | null) {
           filter: `profile_id=eq.${p}`,
         },
         (payload) => {
-          const row = payload.new as { data?: ProfileData } | null;
+          const row = payload.new as { data?: Partial<ProfileData> } | null;
           if (!row?.data) return;
-          const next = { ...empty(), ...row.data };
-          // Avoid loops: only update if different
+          const next = normalize(row.data);
           if (JSON.stringify(next) === JSON.stringify(latestRef.current)) return;
           saveLocal(p, next);
           latestRef.current = next;

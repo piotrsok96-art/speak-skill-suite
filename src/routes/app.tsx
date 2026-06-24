@@ -5,8 +5,10 @@ import {
   useNavigate,
   useRouterState,
 } from "@tanstack/react-router";
-import { useEffect } from "react";
-import { useActiveProfile, setActiveProfile } from "@/lib/store";
+import { useEffect, useMemo } from "react";
+import { useActiveProfile, setActiveProfile, useProfileData } from "@/lib/store";
+import { countDue } from "@/lib/srs";
+import { ensureToday } from "@/lib/streak";
 import {
   BookOpen,
   Repeat,
@@ -14,6 +16,11 @@ import {
   Library,
   BarChart3,
   LogOut,
+  GraduationCap,
+  Repeat2,
+  HelpCircle,
+  Flame,
+  FilePlus2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,28 +28,34 @@ export const Route = createFileRoute("/app")({
   component: AppLayout,
 });
 
-const nav = [
-  { to: "/app/lesson", label: "Nowa Lekcja", icon: BookOpen },
-  { to: "/app/vocab-review", label: "Powtórka Słówek", icon: Repeat },
-  { to: "/app/grammar-quiz", label: "Quiz Gramatyczny", icon: Sparkles },
-  { to: "/app/dictionary", label: "Mój Słowniczek", icon: Library },
-  { to: "/app/progress", label: "Postępy", icon: BarChart3 },
-] as const;
-
 function AppLayout() {
   const profile = useActiveProfile();
+  const [data] = useProfileData(profile);
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   useEffect(() => {
     if (profile === null) {
-      // wait for hydration; if still null after mount, redirect
       const t = setTimeout(() => {
         if (!localStorage.getItem("englishApp:active")) navigate({ to: "/" });
       }, 50);
       return () => clearTimeout(t);
     }
   }, [profile, navigate]);
+
+  const dueCount = useMemo(() => countDue(data.srs), [data.srs]);
+  const streak = useMemo(() => ensureToday(data.streak), [data.streak]);
+
+  const nav = [
+    { to: "/app/lessons", label: "Lekcje (50)", icon: GraduationCap, badge: null as number | null },
+    { to: "/app/srs", label: "Powtórka dnia", icon: Repeat2, badge: dueCount || null },
+    { to: "/app/lesson", label: "Wklej lekcję", icon: FilePlus2, badge: null },
+    { to: "/app/vocab-review", label: "Powtórka słówek", icon: Repeat, badge: null },
+    { to: "/app/grammar-quiz", label: "Quiz gramatyczny", icon: Sparkles, badge: null },
+    { to: "/app/dictionary", label: "Mój słowniczek", icon: Library, badge: null },
+    { to: "/app/progress", label: "Postępy", icon: BarChart3, badge: null },
+    { to: "/app/help", label: "Jak używać", icon: HelpCircle, badge: null },
+  ] as const;
 
   const logout = () => {
     setActiveProfile(null);
@@ -51,7 +64,7 @@ function AppLayout() {
 
   return (
     <div className="min-h-screen flex bg-background">
-      <aside className="no-print w-60 shrink-0 border-r bg-card flex flex-col">
+      <aside className="no-print w-64 shrink-0 border-r bg-card flex flex-col">
         <div className="px-5 py-5 border-b">
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5" />
@@ -67,8 +80,28 @@ function AppLayout() {
               <div className="text-sm capitalize font-semibold">{profile}</div>
             </div>
           )}
+          {profile && (
+            <div className="mt-3 rounded-lg bg-secondary/60 px-3 py-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="inline-flex items-center gap-1 font-medium">
+                  <Flame className="h-3 w-3 text-orange-500" /> {streak.current} dni
+                </span>
+                <span className="text-muted-foreground">
+                  {streak.todayCount}/{streak.dailyGoal} dziś
+                </span>
+              </div>
+              <div className="mt-1.5 h-1.5 rounded-full bg-background overflow-hidden">
+                <div
+                  className="h-full bg-orange-500 transition-all"
+                  style={{
+                    width: `${Math.min(100, (streak.todayCount / Math.max(1, streak.dailyGoal)) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
-        <nav className="flex-1 py-3 px-2 space-y-1">
+        <nav className="flex-1 py-3 px-2 space-y-1 overflow-y-auto">
           {nav.map((item) => {
             const active = pathname.startsWith(item.to);
             return (
@@ -83,7 +116,12 @@ function AppLayout() {
                 )}
               >
                 <item.icon className="h-4 w-4" />
-                {item.label}
+                <span className="flex-1">{item.label}</span>
+                {item.badge != null && item.badge > 0 && (
+                  <span className="inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 rounded-full bg-orange-500 text-white text-[10px] font-bold">
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             );
           })}

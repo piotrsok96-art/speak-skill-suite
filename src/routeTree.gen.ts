@@ -13,10 +13,15 @@ import { Route as AppRouteImport } from './routes/app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppIndexRouteImport } from './routes/app.index'
 import { Route as AppVocabReviewRouteImport } from './routes/app.vocab-review'
+import { Route as AppSrsRouteImport } from './routes/app.srs'
 import { Route as AppProgressRouteImport } from './routes/app.progress'
+import { Route as AppLessonsRouteImport } from './routes/app.lessons'
 import { Route as AppLessonRouteImport } from './routes/app.lesson'
+import { Route as AppHelpRouteImport } from './routes/app.help'
 import { Route as AppGrammarQuizRouteImport } from './routes/app.grammar-quiz'
 import { Route as AppDictionaryRouteImport } from './routes/app.dictionary'
+import { Route as AppLessonsIndexRouteImport } from './routes/app.lessons.index'
+import { Route as AppLessonsIdRouteImport } from './routes/app.lessons.$id'
 
 const AppRoute = AppRouteImport.update({
   id: '/app',
@@ -38,14 +43,29 @@ const AppVocabReviewRoute = AppVocabReviewRouteImport.update({
   path: '/vocab-review',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSrsRoute = AppSrsRouteImport.update({
+  id: '/srs',
+  path: '/srs',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProgressRoute = AppProgressRouteImport.update({
   id: '/progress',
   path: '/progress',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLessonsRoute = AppLessonsRouteImport.update({
+  id: '/lessons',
+  path: '/lessons',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLessonRoute = AppLessonRouteImport.update({
   id: '/lesson',
   path: '/lesson',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHelpRoute = AppHelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => AppRoute,
 } as any)
 const AppGrammarQuizRoute = AppGrammarQuizRouteImport.update({
@@ -58,25 +78,44 @@ const AppDictionaryRoute = AppDictionaryRouteImport.update({
   path: '/dictionary',
   getParentRoute: () => AppRoute,
 } as any)
+const AppLessonsIndexRoute = AppLessonsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppLessonsRoute,
+} as any)
+const AppLessonsIdRoute = AppLessonsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AppLessonsRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppRouteWithChildren
   '/app/dictionary': typeof AppDictionaryRoute
   '/app/grammar-quiz': typeof AppGrammarQuizRoute
+  '/app/help': typeof AppHelpRoute
   '/app/lesson': typeof AppLessonRoute
+  '/app/lessons': typeof AppLessonsRouteWithChildren
   '/app/progress': typeof AppProgressRoute
+  '/app/srs': typeof AppSrsRoute
   '/app/vocab-review': typeof AppVocabReviewRoute
   '/app/': typeof AppIndexRoute
+  '/app/lessons/$id': typeof AppLessonsIdRoute
+  '/app/lessons/': typeof AppLessonsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app/dictionary': typeof AppDictionaryRoute
   '/app/grammar-quiz': typeof AppGrammarQuizRoute
+  '/app/help': typeof AppHelpRoute
   '/app/lesson': typeof AppLessonRoute
   '/app/progress': typeof AppProgressRoute
+  '/app/srs': typeof AppSrsRoute
   '/app/vocab-review': typeof AppVocabReviewRoute
   '/app': typeof AppIndexRoute
+  '/app/lessons/$id': typeof AppLessonsIdRoute
+  '/app/lessons': typeof AppLessonsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -84,10 +123,15 @@ export interface FileRoutesById {
   '/app': typeof AppRouteWithChildren
   '/app/dictionary': typeof AppDictionaryRoute
   '/app/grammar-quiz': typeof AppGrammarQuizRoute
+  '/app/help': typeof AppHelpRoute
   '/app/lesson': typeof AppLessonRoute
+  '/app/lessons': typeof AppLessonsRouteWithChildren
   '/app/progress': typeof AppProgressRoute
+  '/app/srs': typeof AppSrsRoute
   '/app/vocab-review': typeof AppVocabReviewRoute
   '/app/': typeof AppIndexRoute
+  '/app/lessons/$id': typeof AppLessonsIdRoute
+  '/app/lessons/': typeof AppLessonsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -96,29 +140,43 @@ export interface FileRouteTypes {
     | '/app'
     | '/app/dictionary'
     | '/app/grammar-quiz'
+    | '/app/help'
     | '/app/lesson'
+    | '/app/lessons'
     | '/app/progress'
+    | '/app/srs'
     | '/app/vocab-review'
     | '/app/'
+    | '/app/lessons/$id'
+    | '/app/lessons/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/app/dictionary'
     | '/app/grammar-quiz'
+    | '/app/help'
     | '/app/lesson'
     | '/app/progress'
+    | '/app/srs'
     | '/app/vocab-review'
     | '/app'
+    | '/app/lessons/$id'
+    | '/app/lessons'
   id:
     | '__root__'
     | '/'
     | '/app'
     | '/app/dictionary'
     | '/app/grammar-quiz'
+    | '/app/help'
     | '/app/lesson'
+    | '/app/lessons'
     | '/app/progress'
+    | '/app/srs'
     | '/app/vocab-review'
     | '/app/'
+    | '/app/lessons/$id'
+    | '/app/lessons/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -156,6 +214,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppVocabReviewRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/srs': {
+      id: '/app/srs'
+      path: '/srs'
+      fullPath: '/app/srs'
+      preLoaderRoute: typeof AppSrsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/progress': {
       id: '/app/progress'
       path: '/progress'
@@ -163,11 +228,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProgressRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/lessons': {
+      id: '/app/lessons'
+      path: '/lessons'
+      fullPath: '/app/lessons'
+      preLoaderRoute: typeof AppLessonsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/app/lesson': {
       id: '/app/lesson'
       path: '/lesson'
       fullPath: '/app/lesson'
       preLoaderRoute: typeof AppLessonRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/app/help': {
+      id: '/app/help'
+      path: '/help'
+      fullPath: '/app/help'
+      preLoaderRoute: typeof AppHelpRouteImport
       parentRoute: typeof AppRoute
     }
     '/app/grammar-quiz': {
@@ -184,14 +263,45 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDictionaryRouteImport
       parentRoute: typeof AppRoute
     }
+    '/app/lessons/': {
+      id: '/app/lessons/'
+      path: '/'
+      fullPath: '/app/lessons/'
+      preLoaderRoute: typeof AppLessonsIndexRouteImport
+      parentRoute: typeof AppLessonsRoute
+    }
+    '/app/lessons/$id': {
+      id: '/app/lessons/$id'
+      path: '/$id'
+      fullPath: '/app/lessons/$id'
+      preLoaderRoute: typeof AppLessonsIdRouteImport
+      parentRoute: typeof AppLessonsRoute
+    }
   }
 }
+
+interface AppLessonsRouteChildren {
+  AppLessonsIdRoute: typeof AppLessonsIdRoute
+  AppLessonsIndexRoute: typeof AppLessonsIndexRoute
+}
+
+const AppLessonsRouteChildren: AppLessonsRouteChildren = {
+  AppLessonsIdRoute: AppLessonsIdRoute,
+  AppLessonsIndexRoute: AppLessonsIndexRoute,
+}
+
+const AppLessonsRouteWithChildren = AppLessonsRoute._addFileChildren(
+  AppLessonsRouteChildren,
+)
 
 interface AppRouteChildren {
   AppDictionaryRoute: typeof AppDictionaryRoute
   AppGrammarQuizRoute: typeof AppGrammarQuizRoute
+  AppHelpRoute: typeof AppHelpRoute
   AppLessonRoute: typeof AppLessonRoute
+  AppLessonsRoute: typeof AppLessonsRouteWithChildren
   AppProgressRoute: typeof AppProgressRoute
+  AppSrsRoute: typeof AppSrsRoute
   AppVocabReviewRoute: typeof AppVocabReviewRoute
   AppIndexRoute: typeof AppIndexRoute
 }
@@ -199,8 +309,11 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppDictionaryRoute: AppDictionaryRoute,
   AppGrammarQuizRoute: AppGrammarQuizRoute,
+  AppHelpRoute: AppHelpRoute,
   AppLessonRoute: AppLessonRoute,
+  AppLessonsRoute: AppLessonsRouteWithChildren,
   AppProgressRoute: AppProgressRoute,
+  AppSrsRoute: AppSrsRoute,
   AppVocabReviewRoute: AppVocabReviewRoute,
   AppIndexRoute: AppIndexRoute,
 }
