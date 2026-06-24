@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export type ProfileId = "piotr" | "monika";
 
@@ -33,7 +34,7 @@ export interface Lesson {
 export interface GrammarRule {
   id: string;
   topic: string;
-  rule: string; // the gist
+  rule: string;
   question: string;
   options: string[];
   correctIndex: number;
@@ -67,7 +68,7 @@ const empty = (): ProfileData => ({
 const KEY = (p: ProfileId) => `englishApp:${p}`;
 const ACTIVE = "englishApp:active";
 
-export function loadProfile(p: ProfileId): ProfileData {
+function loadLocal(p: ProfileId): ProfileData {
   if (typeof window === "undefined") return empty();
   try {
     const raw = localStorage.getItem(KEY(p));
@@ -78,8 +79,49 @@ export function loadProfile(p: ProfileId): ProfileData {
   }
 }
 
+function saveLocal(p: ProfileId, data: ProfileData) {
+  try {
+    localStorage.setItem(KEY(p), JSON.stringify(data));
+  } catch {
+    // ignore quota
+  }
+}
+
+// --- Cloud sync ---
+async function fetchCloud(p: ProfileId): Promise<ProfileData | null> {
+  const { data, error } = await supabase
+    .from("profile_data")
+    .select("data")
+    .eq("profile_id", p)
+    .maybeSingle();
+  if (error) {
+    console.warn("[cloud] fetch failed", error.message);
+    return null;
+  }
+  if (!data) return null;
+  return { ...empty(), ...((data.data as unknown as ProfileData) ?? {}) };
+}
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+async function pushCloud(p: ProfileId, data: ProfileData) {
+  const payload = JSON.parse(JSON.stringify(data));
+  const { error } = await supabase
+    .from("profile_data")
+    .upsert(
+      { profile_id: p, data: payload, updated_at: new Date().toISOString() },
+      { onConflict: "profile_id" },
+    );
+  if (error) console.warn("[cloud] save failed", error.message);
+}
+
+function debouncedPush(p: ProfileId, data: ProfileData) {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => pushCloud(p, data), 400);
+}
+
 export function saveProfile(p: ProfileId, data: ProfileData) {
-  localStorage.setItem(KEY(p), JSON.stringify(data));
+  saveLocal(p, data);
+  debouncedPush(p, data);
   window.dispatchEvent(new CustomEvent("profile:update", { detail: p }));
 }
 
@@ -90,6 +132,7 @@ export function getActiveProfile(): ProfileId | null {
 }
 
 export function setActiveProfile(p: ProfileId | null) {
+  if (typeof window === "undefined") return;
   if (p) localStorage.setItem(ACTIVE, p);
   else localStorage.removeItem(ACTIVE);
   window.dispatchEvent(new CustomEvent("profile:active"));
@@ -112,24 +155,72 @@ export function useActiveProfile(): ProfileId | null {
 
 export function useProfileData(p: ProfileId | null) {
   const [data, setData] = useState<ProfileData>(empty());
+  const latestRef = useRef<ProfileData>(empty());
+
   useEffect(() => {
     if (!p) return;
-    setData(loadProfile(p));
-    const h = () => setData(loadProfile(p));
-    window.addEventListener("profile:update", h);
-    window.addEventListener("storage", h);
+    let cancelled = false;
+
+    // 1) Hydrate from local cache immediately
+    const local = loadLocal(p);
+    setData(local);
+    latestRef.current = local;
+
+    // 2) Fetch from cloud, merge & update
+    fetchCloud(p).then((cloud) => {
+      if (cancelled || !cloud) return;
+      saveLocal(p, cloud);
+      latestRef.current = cloud;
+      setData(cloud);
+    });
+
+    // 3) Subscribe to realtime changes for this profile
+    const channel = supabase
+      .channel(`profile_data:${p}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "profile_data",
+          filter: `profile_id=eq.${p}`,
+        },
+        (payload) => {
+          const row = payload.new as { data?: ProfileData } | null;
+          if (!row?.data) return;
+          const next = { ...empty(), ...row.data };
+          // Avoid loops: only update if different
+          if (JSON.stringify(next) === JSON.stringify(latestRef.current)) return;
+          saveLocal(p, next);
+          latestRef.current = next;
+          setData(next);
+        },
+      )
+      .subscribe();
+
+    const onLocal = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail !== p) return;
+      const fresh = loadLocal(p);
+      latestRef.current = fresh;
+      setData(fresh);
+    };
+    window.addEventListener("profile:update", onLocal as EventListener);
+
     return () => {
-      window.removeEventListener("profile:update", h);
-      window.removeEventListener("storage", h);
+      cancelled = true;
+      supabase.removeChannel(channel);
+      window.removeEventListener("profile:update", onLocal as EventListener);
     };
   }, [p]);
 
   const update = useCallback(
     (mut: (d: ProfileData) => ProfileData) => {
       if (!p) return;
-      const next = mut(loadProfile(p));
-      saveProfile(p, next);
+      const next = mut(latestRef.current);
+      latestRef.current = next;
       setData(next);
+      saveProfile(p, next);
     },
     [p],
   );
