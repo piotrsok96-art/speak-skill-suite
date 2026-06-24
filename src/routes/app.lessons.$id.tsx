@@ -405,28 +405,6 @@ function wordKey(lessonId: string, en: string): string {
   return `${lessonId}::${en.toLowerCase()}`;
 }
 
-function useMaybeStart(
-  lessonId: string,
-  startedAt: number | undefined,
-  update: (mut: (d: import("@/lib/store").ProfileData) => import("@/lib/store").ProfileData) => void,
-) {
-  if (startedAt) return;
-  // schedule once after mount
-  if (typeof window !== "undefined") {
-    setTimeout(() => {
-      update((d) => {
-        if (d.lessonProgress[lessonId]?.startedAt) return d;
-        return {
-          ...d,
-          lessonProgress: {
-            ...d.lessonProgress,
-            [lessonId]: { ...d.lessonProgress[lessonId], startedAt: Date.now() },
-          },
-        };
-      });
-    }, 200);
-  }
-}
 
 function DialogView({ dialog }: { dialog: BuiltinDialog }) {
   return (
