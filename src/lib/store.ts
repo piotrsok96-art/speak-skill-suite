@@ -104,10 +104,11 @@ async function fetchCloud(p: ProfileId): Promise<ProfileData | null> {
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 async function pushCloud(p: ProfileId, data: ProfileData) {
+  const payload = JSON.parse(JSON.stringify(data));
   const { error } = await supabase
     .from("profile_data")
     .upsert(
-      { profile_id: p, data: data as unknown as Record<string, unknown>, updated_at: new Date().toISOString() },
+      { profile_id: p, data: payload, updated_at: new Date().toISOString() },
       { onConflict: "profile_id" },
     );
   if (error) console.warn("[cloud] save failed", error.message);
