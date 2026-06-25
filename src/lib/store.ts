@@ -238,7 +238,7 @@ export function useProfileData(p: ProfileId | null) {
     });
 
     const channel = supabase
-      .channel(`profile_data:${p}`)
+      .channel(`profile_data:${p}:${Math.random().toString(36).slice(2)}`)
       .on(
         "postgres_changes",
         {
