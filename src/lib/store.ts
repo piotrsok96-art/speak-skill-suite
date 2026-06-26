@@ -80,9 +80,16 @@ export interface LessonProgress {
   completedAt?: number;
   quizScore?: number;
   quizTotal?: number;
+  pretestScore?: number;
+  pretestTotal?: number;
+  fillCorrect?: number;
+  fillTotal?: number;
+  transCorrect?: number;
+  transTotal?: number;
   savedVocab?: boolean;
   savedIdioms?: boolean;
 }
+
 
 export interface ProfileData {
   lessons: Lesson[];
