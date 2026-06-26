@@ -55,6 +55,8 @@ function LessonDetail() {
   const [extraDialogShown, setExtraDialogShown] = useState(false);
   const [extraIdiomsShown, setExtraIdiomsShown] = useState(false);
   const [quizOpen, setQuizOpen] = useState(false);
+  const [pretestOpen, setPretestOpen] = useState(false);
+
 
   if (!lesson) {
     return (
