@@ -7,25 +7,34 @@ import {
   type Word,
   type Idiom,
   type WordStatus,
+  type LessonProgress,
 } from "@/lib/store";
 import { BUILTIN_LESSONS, type BuiltinLesson, type BuiltinVocab, type BuiltinDialog } from "@/content/lessons";
 import { VocabRow } from "@/components/VocabRow";
 import { SpeakButton } from "@/components/SpeakButton";
+import { FillBlank } from "@/components/FillBlank";
+import { TranslateBox } from "@/components/TranslateBox";
+import { GrammarBlock } from "@/components/GrammarBlock";
+import { Scorecard } from "@/components/Scorecard";
+import { PreTest } from "@/components/PreTest";
 import { Button } from "@/components/ui/button";
 import { scheduleNew } from "@/lib/srs";
 import { withStreakBump } from "@/lib/streak";
 import { toast } from "sonner";
 import {
   ArrowLeft,
-  BookOpen,
   Check,
   ChevronRight,
   Plus,
   Sparkles,
   X,
   CheckCircle2,
+  Pencil,
+  Languages,
+  Target,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
 
 export const Route = createFileRoute("/app/lessons/$id")({
   component: LessonDetail,
