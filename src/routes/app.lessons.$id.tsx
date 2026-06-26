@@ -220,8 +220,26 @@ function LessonDetail() {
     toast.success("Lekcja oznaczona jako ukończona");
   };
 
+  const recordScore = (patch: Partial<LessonProgress>) => {
+    update((d) => {
+      const prev = d.lessonProgress[lesson.id] ?? {};
+      return withStreakBump(
+        {
+          ...d,
+          lessonProgress: {
+            ...d.lessonProgress,
+            [lesson.id]: { ...prev, startedAt: prev.startedAt ?? Date.now(), ...patch },
+          },
+        },
+        1,
+      );
+    });
+  };
+
   const allVocab = [...lesson.vocab, ...(extraVocabShown ? lesson.extraVocab : [])];
   const allIdioms = [...lesson.idioms, ...(extraIdiomsShown ? lesson.extraIdioms : [])];
+
+  const pretestQs = useMemo(() => lesson.quiz.slice(0, 5), [lesson]);
 
   return (
     <article className="space-y-8">
@@ -249,21 +267,49 @@ function LessonDetail() {
         <p className="text-sm text-muted-foreground mt-2">{lesson.summary}</p>
       </header>
 
-      <section>
-        <h2 className="text-xl mb-3 flex items-center gap-2">
-          <BookOpen className="h-5 w-5" /> Gramatyka — {lesson.grammar.title}
-        </h2>
-        <div className="rounded-lg border bg-card p-4 space-y-3">
-          <p className="text-sm whitespace-pre-wrap">{lesson.grammar.rule}</p>
-          <ul className="space-y-1 text-sm">
-            {lesson.grammar.examples.map((e, i) => (
-              <li key={i} className="flex items-center gap-2">
-                <SpeakButton text={e} />
-                <span className="font-medium">{e}</span>
-              </li>
-            ))}
-          </ul>
+      {/* PRE-TEST */}
+      <section className="rounded-xl border bg-card p-5">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
+          <div>
+            <h2 className="text-xl flex items-center gap-2">
+              <Target className="h-5 w-5" /> Test wejściowy
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              5 szybkich pytań — sprawdź, czy potrzebujesz tej lekcji.{" "}
+              {progress?.pretestScore != null && (
+                <span className="text-foreground font-medium">
+                  Twój wynik: {progress.pretestScore}/{progress.pretestTotal}
+                </span>
+              )}
+            </p>
+          </div>
+          {!pretestOpen && (
+            <Button variant="outline" onClick={() => setPretestOpen(true)}>
+              {progress?.pretestScore != null ? "Powtórz pre-test" : "Rozpocznij"}
+            </Button>
+          )}
         </div>
+        {pretestOpen && (
+          <PreTest
+            key={`pre-${lesson.id}`}
+            questions={pretestQs}
+            onFinish={(correct, total) => {
+              recordScore({ pretestScore: correct, pretestTotal: total });
+              if (correct / total >= 0.8) {
+                toast.success("Świetnie! Możesz tylko przejrzeć materiał i przejść do quizu końcowego.");
+              }
+            }}
+          />
+        )}
+      </section>
+
+      {/* GRAMMAR + MISTAKES */}
+      <section>
+        <GrammarBlock
+          primary={lesson.grammar}
+          secondary={lesson.secondaryGrammar}
+          mistakes={lesson.commonMistakes}
+        />
       </section>
 
       <section>
@@ -365,11 +411,57 @@ function LessonDetail() {
         )}
       </section>
 
+      {/* FILL-IN-THE-BLANK */}
+      {lesson.fillBlanks?.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+            <h2 className="text-xl flex items-center gap-2">
+              <Pencil className="h-5 w-5" /> Uzupełnij luki
+            </h2>
+            {progress?.fillCorrect != null && (
+              <span className="text-sm text-muted-foreground">
+                Ostatnio: {progress.fillCorrect}/{progress.fillTotal}
+              </span>
+            )}
+          </div>
+          <FillBlank
+            key={`fill-${lesson.id}`}
+            items={lesson.fillBlanks}
+            onFinish={(correct, total) => recordScore({ fillCorrect: correct, fillTotal: total })}
+          />
+        </section>
+      )}
+
+      {/* TRANSLATIONS PL→EN */}
+      {lesson.translations?.length > 0 && (
+        <section>
+          <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+            <h2 className="text-xl flex items-center gap-2">
+              <Languages className="h-5 w-5" /> Tłumaczenia PL→EN
+            </h2>
+            {progress?.transCorrect != null && (
+              <span className="text-sm text-muted-foreground">
+                Ostatnio: {progress.transCorrect}/{progress.transTotal}
+              </span>
+            )}
+          </div>
+          <TranslateBox
+            key={`trans-${lesson.id}`}
+            items={lesson.translations}
+            onFinish={(correct, total) => recordScore({ transCorrect: correct, transTotal: total })}
+          />
+        </section>
+      )}
+
+      {/* SCORECARD */}
+      <Scorecard progress={progress} />
+
+      {/* QUIZ */}
       <section className="rounded-xl border bg-card p-5">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h2 className="text-xl flex items-center gap-2">
-              <Sparkles className="h-5 w-5" /> Quiz z tej lekcji
+              <Sparkles className="h-5 w-5" /> Quiz końcowy (post-test)
             </h2>
             <p className="text-sm text-muted-foreground mt-1">
               10 pytań: słówka, idiomy, gramatyka.{" "}
@@ -408,6 +500,7 @@ function LessonDetail() {
       )}
     </article>
   );
+
 }
 
 function wordKey(lessonId: string, en: string): string {
