@@ -1414,6 +1414,173 @@ def quiz_obj(qs):
                      + ",explain:" + ts_string(q["explain"]) + "}")
     return "[" + ",".join(items) + "]"
 
+# --- Extended content helpers (fill-blanks, translations, common mistakes) ---
+
+MISTAKES_GENERIC = [
+    ("I have 25 years.", "I am 25 years old.", "Wiek wyrażamy przez 'be', nie 'have'."),
+    ("I am agree with you.", "I agree with you.", "'Agree' jest czasownikiem — bez 'am/is/are'."),
+    ("She make a coffee.", "She makes a coffee.", "3. os. l.poj. w Present Simple: dodaj -s."),
+]
+
+MISTAKES_BY_GRAMMAR = {
+    "Present Perfect vs Past Simple": [
+        ("I have seen him yesterday.", "I saw him yesterday.", "Z 'yesterday' używamy Past Simple, nie Present Perfect."),
+        ("How long do you know him?", "How long have you known him?", "Stan trwający od przeszłości do teraz = Present Perfect."),
+        ("I am working here since 2020.", "I have been working here since 2020.", "Z 'since/for' używamy Present Perfect (Continuous)."),
+    ],
+    "First & Second Conditional": [
+        ("If I will have time, I'll call.", "If I have time, I'll call.", "Po 'if' w 1st Conditional nie dajemy 'will'."),
+        ("If I would be rich, I would travel.", "If I were rich, I would travel.", "2nd Conditional: po 'if' Past Simple ('were' dla wszystkich)."),
+        ("If she calls me, I would help.", "If she calls me, I will help.", "Nie mieszamy 1st i 2nd Conditional."),
+    ],
+    "Modal verbs: must / have to / should": [
+        ("You must to go.", "You must go.", "Po modal verbs nie ma 'to' (oprócz 'have to', 'ought to')."),
+        ("I mustn't work tomorrow.", "I don't have to work tomorrow.", "'mustn't' = zakaz; 'don't have to' = nie musisz."),
+        ("He should to call her.", "He should call her.", "'should' + bezokolicznik bez 'to'."),
+    ],
+    "Reported Speech": [
+        ("He said me that he is tired.", "He told me that he was tired.", "'say' bez dopełnienia osobowego; 'tell' + komu."),
+        ("She said she will come.", "She said she would come.", "Cofamy 'will' → 'would'."),
+        ("He asked where do I live.", "He asked where I lived.", "W mowie zależnej brak inwersji i 'do/does'."),
+    ],
+    "Passive Voice": [
+        ("The letter was wrote by Tom.", "The letter was written by Tom.", "Strona bierna: be + III forma (Past Participle)."),
+        ("My car is repair now.", "My car is being repaired now.", "Present Continuous Passive: is/are being + III forma."),
+        ("This house built in 1920.", "This house was built in 1920.", "Brak 'be' — to nie jest poprawna strona bierna."),
+    ],
+    "Used to / would for past habits": [
+        ("I am used to smoke.", "I used to smoke.", "'used to' = dawniej; 'be used to + -ing' = być przyzwyczajonym."),
+        ("Did you used to live here?", "Did you use to live here?", "Po 'did' wraca forma podstawowa 'use to'."),
+        ("We would live in Warsaw.", "We used to live in Warsaw.", "'would' nie pasuje do stanów — tylko 'used to'."),
+    ],
+    "Articles: a / an / the / —": [
+        ("I am engineer.", "I am an engineer.", "Przed zawodem (l.poj.) potrzebny rodzajnik 'a/an'."),
+        ("She plays piano.", "She plays the piano.", "Instrumenty muzyczne — z 'the'."),
+        ("The life is beautiful.", "Life is beautiful.", "Pojęcia ogólne — bez rodzajnika."),
+    ],
+    "Gerunds and Infinitives": [
+        ("I enjoy to read.", "I enjoy reading.", "Po 'enjoy' zawsze -ing."),
+        ("She decided going home.", "She decided to go home.", "Po 'decide' bezokolicznik z 'to'."),
+        ("I'm interested to learn French.", "I'm interested in learning French.", "Po przyimku zawsze -ing."),
+    ],
+    "Future forms: will / going to / Present Continuous": [
+        ("I will meet Tom tomorrow at 7.", "I'm meeting Tom tomorrow at 7.", "Ustalony plan = Present Continuous."),
+        ("Look at the clouds — it will rain.", "Look at the clouds — it's going to rain.", "Przewidywanie z dowodu = 'going to'."),
+        ("I think I going to help.", "I think I will help.", "Decyzja teraz = 'will'."),
+    ],
+    "Comparatives and Superlatives": [
+        ("She is more taller than me.", "She is taller than me.", "Nie łączymy 'more' z formą -er."),
+        ("This is the most easy task.", "This is the easiest task.", "Krótkie przymiotniki: -est."),
+        ("My English is gooder.", "My English is better.", "'good' jest nieregularne: good → better → best."),
+    ],
+    "Present Perfect Continuous": [
+        ("I am learning English for 2 years.", "I have been learning English for 2 years.", "'for/since' = Present Perfect (Continuous)."),
+        ("She has been knowing him for years.", "She has known him for years.", "Stany (know/like) nie używają formy ciągłej."),
+        ("It rains all day.", "It has been raining all day.", "Czynność trwająca do teraz = PPC."),
+    ],
+    "Relative Clauses (who / which / that)": [
+        ("The man which called you is here.", "The man who called you is here.", "Osoby = 'who/that', nie 'which'."),
+        ("My brother who lives in Paris is a doctor.", "My brother, who lives in Paris, is a doctor.", "Non-defining wymaga przecinków."),
+        ("The book what I bought is great.", "The book that I bought is great.", "'what' nie jest zaimkiem względnym."),
+    ],
+    "Question tags": [
+        ("You're coming, isn't it?", "You're coming, aren't you?", "Powtarzamy operator i podmiot."),
+        ("He doesn't smoke, doesn't he?", "He doesn't smoke, does he?", "Przeczenie → twierdząca tag."),
+        ("She can drive, can she?", "She can drive, can't she?", "Twierdzenie → przecząca tag."),
+    ],
+    "So / Such / Too / Enough": [
+        ("She is so kind person.", "She is such a kind person.", "Przed rzeczownikiem używamy 'such'."),
+        ("This coffee is enough hot.", "This coffee is hot enough.", "'enough' stoi po przymiotniku."),
+        ("It's too much cold.", "It's too cold.", "'too' bez 'much' przed przymiotnikiem."),
+    ],
+    "Phrasal verbs in business": [
+        ("Let's put the meeting off it.", "Let's put off the meeting.", "Nie powtarzamy dopełnienia po phrasal verb."),
+        ("I will look the issue.", "I will look into the issue.", "'look into' = zbadać; nie pomijaj 'into'."),
+        ("She came with a great idea.", "She came up with a great idea.", "'come up with' = wymyślić — pełna fraza."),
+    ],
+    "Third Conditional": [
+        ("If I would have studied, I would have passed.", "If I had studied, I would have passed.", "Po 'if' Past Perfect, bez 'would'."),
+        ("If she had call, I would help.", "If she had called, I would have helped.", "Cała struktura w przeszłości: had + III, would have + III."),
+        ("If we didn't take a taxi, we would miss the flight.", "If we hadn't taken a taxi, we would have missed the flight.", "Hipoteza o przeszłości = 3rd Conditional."),
+    ],
+    "Quantifiers: much / many / a few / a little": [
+        ("How many sugar do you take?", "How much sugar do you take?", "Sugar jest niepoliczalne — 'much'."),
+        ("I have much friends.", "I have many friends.", "Friends jest policzalne — 'many'."),
+        ("We have a little time.", "We have little time.", "'a little' = trochę; 'little' = mało."),
+    ],
+    "Wish + Past / Past Perfect": [
+        ("I wish I know the answer.", "I wish I knew the answer.", "Po 'wish' (teraz) używamy Past Simple."),
+        ("I wish I would studied harder.", "I wish I had studied harder.", "Żal o przeszłość: Past Perfect."),
+        ("I wish you don't interrupt me.", "I wish you wouldn't interrupt me.", "Irytujące zachowanie: 'wouldn't'."),
+    ],
+    "Linking words: although / however / despite": [
+        ("Despite it was raining, we walked.", "Although it was raining, we walked. / Despite the rain, we walked.", "'despite' + noun/-ing, nie zdanie."),
+        ("Although, it was cold.", "Although it was cold, we walked.", "'although' to spójnik — łączy dwa zdania."),
+        ("It was cold, although we walked.", "It was cold; however, we walked.", "Tu pasuje 'however' (zaprzeczenie po średniku)."),
+    ],
+    "Indirect / Embedded questions": [
+        ("Could you tell me where is the station?", "Could you tell me where the station is?", "W pytaniach pośrednich szyk twierdzący."),
+        ("Do you know what time does it start?", "Do you know what time it starts?", "Brak 'do/does' w pytaniu pośrednim."),
+        ("I wonder is she coming.", "I wonder if she is coming.", "Po 'wonder' używamy 'if/whether'."),
+    ],
+}
+
+def mistakes_for(g_title):
+    return MISTAKES_BY_GRAMMAR.get(g_title, MISTAKES_GENERIC)
+
+def make_fill_blanks(vocab, dialog):
+    """Build 6 fill-in-the-blank items from vocab examples (replace target word with ___)."""
+    items = []
+    used = set()
+    for v in vocab:
+        if len(items) >= 6: break
+        en, _, _, pl, example = v[0], v[1], v[2], v[3], v[4]
+        target = en
+        # try whole-word replace, case-insensitive
+        low = example.lower()
+        idx = low.find(target.lower())
+        if idx == -1: continue
+        if target.lower() in used: continue
+        used.add(target.lower())
+        sentence = example[:idx] + "_____" + example[idx+len(target):]
+        items.append({
+            "sentence": sentence,
+            "answer": target,
+            "hint": pl,
+            "full": example,
+        })
+    # fallback to dialog if not enough
+    if len(items) < 4:
+        for line in dialog:
+            if len(items) >= 4: break
+            words = line[1].split()
+            if len(words) < 5: continue
+            mid = words[len(words)//2].strip(".,!?")
+            if len(mid) < 4 or mid.lower() in used: continue
+            used.add(mid.lower())
+            sentence = line[1].replace(mid, "_____", 1)
+            items.append({"sentence": sentence, "answer": mid, "hint": line[2], "full": line[1]})
+    return items
+
+def make_translations(dialog):
+    """Pick 6 dialog lines (pl→en) as translation drills."""
+    picks = []
+    for line in dialog:
+        if len(picks) >= 6: break
+        if len(line[1].split()) < 3: continue
+        picks.append({"pl": line[2], "en": line[1]})
+    return picks
+
+def fill_obj(f):
+    return ("{sentence:" + ts_string(f["sentence"]) + ",answer:" + ts_string(f["answer"])
+            + ",hint:" + ts_string(f["hint"]) + ",full:" + ts_string(f["full"]) + "}")
+
+def trans_obj(t):
+    return "{pl:" + ts_string(t["pl"]) + ",en:" + ts_string(t["en"]) + "}"
+
+def mistake_obj(m):
+    return "{wrong:" + ts_string(m[0]) + ",right:" + ts_string(m[1]) + ",note:" + ts_string(m[2]) + "}"
+
 OUT = []
 OUT.append("""// AUTO-GENERATED by scripts/gen_lessons.py — do not edit by hand.
 export interface BuiltinVocab { id: string; en: string; ipa: string; plPron: string; pl: string; example: string; }
@@ -1422,6 +1589,9 @@ export interface BuiltinDialogLine { speaker: string; en: string; pl: string; }
 export interface BuiltinDialog { lines: BuiltinDialogLine[]; }
 export interface BuiltinGrammar { title: string; rule: string; examples: string[]; }
 export interface BuiltinQuizQ { q: string; options: string[]; correct: number; explain: string; }
+export interface BuiltinFillBlank { sentence: string; answer: string; hint: string; full: string; }
+export interface BuiltinTranslation { pl: string; en: string; }
+export interface BuiltinMistake { wrong: string; right: string; note: string; }
 export interface BuiltinLesson {
   id: string;
   number: number;
@@ -1432,6 +1602,10 @@ export interface BuiltinLesson {
   idioms: BuiltinIdiom[];
   dialogs: BuiltinDialog[];
   grammar: BuiltinGrammar;
+  secondaryGrammar: BuiltinGrammar;
+  commonMistakes: BuiltinMistake[];
+  fillBlanks: BuiltinFillBlank[];
+  translations: BuiltinTranslation[];
   quiz: BuiltinQuizQ[];
   extraVocab: BuiltinVocab[];
   extraIdioms: BuiltinIdiom[];
@@ -1449,10 +1623,13 @@ for n, (slug, title_pl, level) in enumerate(TOPICS, start=1):
     extraI = topic_extra_idioms(slug, 2)
     extraD = topic_extra_dialog(slug)
     grammar = GRAMMAR_POOL[(n-1) % len(GRAMMAR_POOL)]
+    secondary = GRAMMAR_POOL[(n-1+7) % len(GRAMMAR_POOL)]
     dialog1 = DIALOGS[slug]
-    # secondary dialog: trimmed flip
     dialog2 = list(reversed(dialog1[:6]))
     quiz = make_quiz(vocab, idioms, grammar)
+    fills = make_fill_blanks(vocab, dialog1)
+    trans = make_translations(dialog1)
+    mistakes = mistakes_for(grammar[0])
 
     OUT.append("{")
     OUT.append("id:" + ts_string(lid) + ",")
@@ -1464,6 +1641,10 @@ for n, (slug, title_pl, level) in enumerate(TOPICS, start=1):
     OUT.append("idioms:[" + ",".join(idiom_obj(lid, i, idm) for i, idm in enumerate(idioms)) + "],")
     OUT.append("dialogs:[" + dlg_obj(dialog1) + "," + dlg_obj(dialog2) + "],")
     OUT.append("grammar:" + grammar_obj(grammar) + ",")
+    OUT.append("secondaryGrammar:" + grammar_obj(secondary) + ",")
+    OUT.append("commonMistakes:[" + ",".join(mistake_obj(m) for m in mistakes) + "],")
+    OUT.append("fillBlanks:[" + ",".join(fill_obj(f) for f in fills) + "],")
+    OUT.append("translations:[" + ",".join(trans_obj(t) for t in trans) + "],")
     OUT.append("quiz:" + quiz_obj(quiz) + ",")
     OUT.append("extraVocab:[" + ",".join(vocab_obj(lid+"-x", i, v) for i, v in enumerate(extraV)) + "],")
     OUT.append("extraIdioms:[" + ",".join(idiom_obj(lid+"-x", i, idm) for i, idm in enumerate(extraI)) + "],")
@@ -1477,3 +1658,4 @@ with open("src/content/lessons.ts", "w", encoding="utf-8") as f:
 
 print(f"Generated {len(TOPICS)} lessons -> src/content/lessons.ts")
 print(f"File size: {os.path.getsize('src/content/lessons.ts')} bytes")
+
