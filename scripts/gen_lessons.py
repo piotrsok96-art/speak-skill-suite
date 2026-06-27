@@ -1438,37 +1438,18 @@ def make_extra_dialog(topic_pl, vocab, idioms):
               "Dzięki — czuję się pewniej."),
     ]
 
-def make_translations(vocab, idioms):
-    """6 PL→EN translation drills built from vocab examples and idiom examples (NEW sentences, not main dialog)."""
+def make_translations(second_dialog, extra_dialog):
+    """6 PL→EN drills from second + extra dialogs (NEW lines, not the main lesson dialog)."""
     out = []
-    # 4 from later vocab examples (index 14..19) using PL meaning hint
-    for i in range(14, 14 + 4):
-        if i >= len(vocab): break
-        v = vocab[i]
-        # build a Polish target sentence by combining meaning + a templated wrapper
-        pl = _vocab_pl_sentence(v)
-        out.append({"pl": pl, "en": v[4]})
-    # 2 from idiom examples (use idiom Polish meaning + simple wrapper)
-    for k in range(2):
-        idm = idioms[(k + 2) % len(idioms)]
-        pl = _idiom_pl_sentence(idm)
-        out.append({"pl": pl, "en": idm[2]})
+    for line in second_dialog:
+        if len(out) >= 4: break
+        if len(line[1].split()) < 3: continue
+        out.append({"pl": line[2], "en": line[1]})
+    for line in extra_dialog:
+        if len(out) >= 6: break
+        if len(line[1].split()) < 3: continue
+        out.append({"pl": line[2], "en": line[1]})
     return out
-
-# Simple PL sentence builders (don't aim for perfect grammar — they are translation prompts; user is judged by token overlap).
-def _vocab_pl_sentence(v):
-    en, _, _, pl, ex = v
-    # Use heuristic templates based on example sentence shape
-    low = ex.lower()
-    if low.startswith("i ") or low.startswith("we ") or low.startswith("they "):
-        return f"(po polsku, zdanie z '{pl}'): napisz po angielsku zdanie znaczące — {pl}."
-    if "?" in ex:
-        return f"Zadaj pytanie po angielsku, używając słowa '{en}' ({pl})."
-    return f"Powiedz po angielsku zdanie używając '{en}' — znaczenie: {pl}."
-
-def _idiom_pl_sentence(idm):
-    en, pl, _ = idm
-    return f"Powiedz po angielsku: użyj idiomu '{en}' ({pl})."
 
 def topic_extra_idioms(topic_slug, n=2):
     idx = (abs(hash(topic_slug+"xi")) + 13) % len(IDIOM_POOL)
