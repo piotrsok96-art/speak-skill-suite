@@ -1252,94 +1252,121 @@ DIALOGS = {
 }
 
 # --- Quiz generation helpers ---
-def make_quiz(vocab, idioms, grammar):
-    """Build 10 quiz questions: 4 vocab-translate (EN->PL), 2 idiom-meaning, 2 fill-in, 2 grammar-pick."""
+import random as _rnd
+
+def _shuffle(seed_str, lst):
+    r = _rnd.Random(hash(seed_str) & 0xFFFFFFFF)
+    out = list(lst)
+    r.shuffle(out)
+    return out
+
+def _grammar_q(g, ex_idx, salt):
+    g_title, _, g_examples = g
+    if ex_idx >= len(g_examples):
+        ex_idx = ex_idx % len(g_examples)
+    ex = g_examples[ex_idx]
+    words = ex.split()
+    if len(words) < 4:
+        return None
+    candidates = [i for i, w in enumerate(words) if len(w.strip(".,!?'\"")) >= 4]
+    target_idx = candidates[len(candidates)//2] if candidates else len(words)//2
+    target = words[target_idx].strip(".,!?'\"")
+    sentence = ex.replace(target, "_____", 1)
+    opts = [target]
+    pool = [w.strip(".,!?'\"") for w in ex.split() if w.strip(".,!?'\"").lower() != target.lower()]
+    for d in pool:
+        if d and d not in opts and len(opts) < 4:
+            opts.append(d)
+    for other in g_examples:
+        if len(opts) >= 4: break
+        for w in other.split():
+            w = w.strip(".,!?'\"")
+            if w and w not in opts and len(opts) < 4:
+                opts.append(w)
+    while len(opts) < 4:
+        opts.append("—")
+    opts = _shuffle(ex + salt, opts)
+    return {
+        "type": "grammar",
+        "q": f"Gramatyka ({g_title}). Uzupełnij: „{sentence}\"",
+        "options": opts,
+        "correct": opts.index(target),
+        "explain": f"Poprawnie: „{ex}\""
+    }
+
+def _vocab_translate_q(vocab, idx, salt):
+    w = vocab[idx % len(vocab)]
+    opts = [w[3]]
+    for v in vocab:
+        if v[3] != w[3] and v[3] not in opts and len(opts) < 4:
+            opts.append(v[3])
+    opts = _shuffle(w[0] + salt, opts)
+    return {
+        "type": "translate",
+        "q": f"Co oznacza słowo „{w[0]}\"?",
+        "options": opts,
+        "correct": opts.index(w[3]),
+        "explain": f"„{w[0]}\" = {w[3]} (np. {w[4]})"
+    }
+
+def _idiom_q(idioms, idx, salt):
+    idm = idioms[idx % len(idioms)]
+    opts = [idm[1]]
+    for k in IDIOM_POOL:
+        if k[1] != idm[1] and k[1] not in opts and len(opts) < 4:
+            opts.append(k[1])
+    opts = _shuffle(idm[0] + salt, opts)
+    return {
+        "type": "idiom",
+        "q": f"Co znaczy idiom „{idm[0]}\"?",
+        "options": opts,
+        "correct": opts.index(idm[1]),
+        "explain": f"„{idm[0]}\" = {idm[1]}"
+    }
+
+def _fill_q(vocab, idx, salt):
+    w = vocab[idx % len(vocab)]
+    sentence = w[4].replace(w[0], "_____", 1)
+    if "_____" not in sentence:
+        sentence = f"I need to _____ this. ({w[3]})"
+    opts = [w[0]]
+    for v in vocab:
+        if v[0] != w[0] and v[0] not in opts and len(opts) < 4:
+            opts.append(v[0])
+    opts = _shuffle(w[0] + "f" + salt, opts)
+    return {
+        "type": "fill",
+        "q": f"Uzupełnij: „{sentence}\"",
+        "options": opts,
+        "correct": opts.index(w[0]),
+        "explain": f"Pełne zdanie: „{w[4]}\""
+    }
+
+def make_pretest(vocab, idioms, grammar):
     qs = []
-    # Helper to pick distractors
-    pool_pl = [v[3] for v in vocab]
-    for i in range(4):
-        w = vocab[i]
-        # distractors from other vocab
-        opts = [w[3]]
-        j = 0
-        for v in vocab:
-            if v[3] != w[3]:
-                opts.append(v[3])
-                j += 1
-            if j >= 3: break
-        import random
-        random.seed(hash(w[0])%1000)
-        random.shuffle(opts)
-        qs.append({
-            "type": "translate",
-            "q": f"Co oznacza słowo „{w[0]}\"?",
-            "options": opts,
-            "correct": opts.index(w[3]),
-            "explain": f"„{w[0]}\" = {w[3]} (np. {w[4]})"
-        })
-    # idiom meaning
-    for i in range(min(2, len(idioms))):
-        idm = idioms[i]
-        opts = [idm[1]]
-        for k in IDIOM_POOL[:6]:
-            if k[1] != idm[1] and len(opts) < 4:
-                opts.append(k[1])
-        import random
-        random.seed(hash(idm[0])%1000)
-        random.shuffle(opts)
-        qs.append({
-            "type": "idiom",
-            "q": f"Co znaczy idiom „{idm[0]}\"?",
-            "options": opts,
-            "correct": opts.index(idm[1]),
-            "explain": f"„{idm[0]}\" = {idm[1]}"
-        })
-    # fill-in based on vocab examples
+    for i in range(3):
+        qs.append(_vocab_translate_q(vocab, i, "pre"))
+    qs.append(_idiom_q(idioms, 0, "pre"))
+    g_q = _grammar_q(grammar, 0, "pre")
+    if g_q: qs.append(g_q)
+    else: qs.append(_fill_q(vocab, 3, "pre"))
+    return qs[:5]
+
+def make_quiz(vocab, idioms, grammar, secondary):
+    qs = []
+    for i in range(3):
+        qs.append(_vocab_translate_q(vocab, 5 + i, "post"))
+    for i in range(min(2, max(0, len(idioms) - 1))):
+        qs.append(_idiom_q(idioms, 1 + i, "post"))
     for i in range(2):
-        w = vocab[5+i]
-        sentence = w[4].replace(w[0], "_____", 1)
-        if "_____" not in sentence:
-            sentence = f"I need to _____ this. ({w[3]})"
-        opts = [w[0]]
-        for v in vocab:
-            if v[0] != w[0] and len(opts) < 4:
-                opts.append(v[0])
-        import random
-        random.seed(hash(w[0]+"f")%1000)
-        random.shuffle(opts)
-        qs.append({
-            "type": "fill",
-            "q": f"Uzupełnij: „{sentence}\"",
-            "options": opts,
-            "correct": opts.index(w[0]),
-            "explain": f"Pełne zdanie: „{w[4]}\""
-        })
-    # grammar-based
-    g_title, g_rule, g_examples = grammar
-    for i, ex in enumerate(g_examples[:2]):
-        words = ex.split()
-        if len(words) > 4:
-            target_idx = len(words) // 2
-            target = words[target_idx].strip(".,!?")
-            sentence = ex.replace(target, "_____", 1)
-            opts = [target]
-            distractor_words = [w.strip(".,") for w in ex.split() if w.strip(".,").lower() != target.lower()]
-            for d in distractor_words[:3]:
-                if d not in opts and len(opts) < 4:
-                    opts.append(d)
-            while len(opts) < 4:
-                opts.append("...")
-            import random
-            random.seed(hash(ex)%1000)
-            random.shuffle(opts)
-            qs.append({
-                "type": "grammar",
-                "q": f"Gramatyka ({g_title}). Uzupełnij: „{sentence}\"",
-                "options": opts,
-                "correct": opts.index(target),
-                "explain": f"Poprawnie: „{ex}\""
-            })
-    return qs[:10]
+        qs.append(_fill_q(vocab, 8 + i, "post"))
+    for i in range(3):
+        g_q = _grammar_q(grammar, i, "post")
+        if g_q: qs.append(g_q)
+    for i in range(2):
+        g_q = _grammar_q(secondary, i, "post2")
+        if g_q: qs.append(g_q)
+    return qs[:12]
 
 # --- Build lessons ---
 def slug_id(s, n):
