@@ -578,6 +578,10 @@ function wordKey(lessonId: string, en: string): string {
   return `${lessonId}::${en.toLowerCase()}`;
 }
 
+function idiomKey(lessonId: string, en: string): string {
+  return `idiom::${lessonId}::${en.toLowerCase()}`;
+}
+
 
 function DialogView({ dialog }: { dialog: BuiltinDialog }) {
   return (
