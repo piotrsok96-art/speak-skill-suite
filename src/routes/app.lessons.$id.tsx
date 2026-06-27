@@ -121,6 +121,35 @@ function LessonDetail() {
     });
   };
 
+  const markIdiom = (i: { en: string; pl: string; example: string }, status: WordStatus) => {
+    update((d) => {
+      const key = idiomKey(lesson.id, i.en);
+      const wordStatus = { ...d.wordStatus, [key]: status };
+      let srs = d.srs;
+      if (status === "learning") {
+        if (!srs[key]) {
+          srs = {
+            ...srs,
+            [key]: scheduleNew({
+              key,
+              en: i.en,
+              ipa: "",
+              plPron: "",
+              pl: i.pl,
+              example: i.example,
+              source: lesson.id,
+            }),
+          };
+        }
+      } else if (status === "known" && srs[key]) {
+        const next = { ...srs };
+        delete next[key];
+        srs = next;
+      }
+      return withStreakBump({ ...d, wordStatus, srs }, 1);
+    });
+  };
+
   const saveAllVocab = () => {
     const vocab = [...lesson.vocab, ...(extraVocabShown ? lesson.extraVocab : [])];
     update((d) => {
