@@ -1396,14 +1396,79 @@ def topic_extra_vocab(topic_slug, n=10):
     idx = (abs(hash(topic_slug+"x")) + 7) % len(COMMON_VOCAB)
     return [COMMON_VOCAB[(idx+i) % len(COMMON_VOCAB)] for i in range(n)]
 
-def topic_extra_dialog(topic_slug):
-    """Lightweight second dialog."""
-    base = DIALOGS[topic_slug]
-    # Reverse speakers / shift
-    return [(b[0], b[1], b[2]) for b in base[:4]] + [
-        ("A","Anyway, we should continue this later.","W każdym razie powinniśmy do tego wrócić później."),
-        ("B","Sounds good. Talk soon!","Brzmi dobrze. Do usłyszenia!"),
+def make_second_dialog(topic_pl, vocab, idioms):
+    """Distinct second dialog — meta-conversation about lesson vocab/idioms."""
+    v = vocab
+    i = idioms
+    return [
+        ("A", f"Let's go deeper into '{topic_pl.lower()}'. Can you use '{v[10][0]}' in a sentence?",
+              f"Wejdźmy głębiej w temat. Użyjesz słowa '{v[10][0]}' w zdaniu?"),
+        ("B", v[10][4], f"Po polsku: znaczy '{v[10][3]}'."),
+        ("A", f"Nice. And what about '{v[11][0]}' — when would you use it?",
+              f"Świetnie. A '{v[11][0]}' — kiedy to powiesz?"),
+        ("B", v[11][4] + " It means " + v[11][3] + ".",
+              f"Znaczy '{v[11][3]}'."),
+        ("A", f"There's also the idiom '{i[1][0]}'. Do you know it?",
+              f"Jest też idiom '{i[1][0]}'. Znasz go?"),
+        ("B", f"Yes — {i[1][2]} It means '{i[1][1]}'.",
+              f"Tak — znaczy '{i[1][1]}'."),
+        ("A", f"Last one: '{v[12][0]}'. Try a sentence.",
+              f"Ostatnie: '{v[12][0]}'. Spróbuj zdania."),
+        ("B", v[12][4], f"Czyli: '{v[12][3]}'."),
     ]
+
+def make_extra_dialog(topic_pl, vocab, idioms):
+    v = vocab
+    i = idioms
+    return [
+        ("A", f"One more practice round. What does '{v[15][0]}' mean to you?",
+              f"Jeszcze jedna runda. Co znaczy dla ciebie '{v[15][0]}'?"),
+        ("B", v[15][4], f"Po polsku: '{v[15][3]}'."),
+        ("A", f"Good. Now use '{v[16][0]}' in context.",
+              f"Dobrze. A teraz '{v[16][0]}' w kontekście."),
+        ("B", v[16][4] + " — basically " + v[16][3] + ".",
+              f"Czyli: '{v[16][3]}'."),
+        ("A", f"And the idiom '{i[2][0]}'?",
+              f"A idiom '{i[2][0]}'?"),
+        ("B", f"{i[2][2]} It's used when something is '{i[2][1]}'.",
+              f"Używamy, gdy coś jest '{i[2][1]}'."),
+        ("A", "Great progress. Let's wrap up.",
+              "Świetny postęp. Kończymy."),
+        ("B", "Thanks — I feel more confident now.",
+              "Dzięki — czuję się pewniej."),
+    ]
+
+def make_translations(vocab, idioms):
+    """6 PL→EN translation drills built from vocab examples and idiom examples (NEW sentences, not main dialog)."""
+    out = []
+    # 4 from later vocab examples (index 14..19) using PL meaning hint
+    for i in range(14, 14 + 4):
+        if i >= len(vocab): break
+        v = vocab[i]
+        # build a Polish target sentence by combining meaning + a templated wrapper
+        pl = _vocab_pl_sentence(v)
+        out.append({"pl": pl, "en": v[4]})
+    # 2 from idiom examples (use idiom Polish meaning + simple wrapper)
+    for k in range(2):
+        idm = idioms[(k + 2) % len(idioms)]
+        pl = _idiom_pl_sentence(idm)
+        out.append({"pl": pl, "en": idm[2]})
+    return out
+
+# Simple PL sentence builders (don't aim for perfect grammar — they are translation prompts; user is judged by token overlap).
+def _vocab_pl_sentence(v):
+    en, _, _, pl, ex = v
+    # Use heuristic templates based on example sentence shape
+    low = ex.lower()
+    if low.startswith("i ") or low.startswith("we ") or low.startswith("they "):
+        return f"(po polsku, zdanie z '{pl}'): napisz po angielsku zdanie znaczące — {pl}."
+    if "?" in ex:
+        return f"Zadaj pytanie po angielsku, używając słowa '{en}' ({pl})."
+    return f"Powiedz po angielsku zdanie używając '{en}' — znaczenie: {pl}."
+
+def _idiom_pl_sentence(idm):
+    en, pl, _ = idm
+    return f"Powiedz po angielsku: użyj idiomu '{en}' ({pl})."
 
 def topic_extra_idioms(topic_slug, n=2):
     idx = (abs(hash(topic_slug+"xi")) + 13) % len(IDIOM_POOL)
