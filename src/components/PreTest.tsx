@@ -79,10 +79,10 @@ export function PreTest({ questions, onFinish }: Props) {
         <Button
           size="sm"
           onClick={() => {
+            const finalCorrect = correct; // already updated by setCorrect on click
             if (idx + 1 === questions.length) {
               setDone(true);
-              onFinish(correct + (isCorrect && picked != null ? 0 : 0), questions.length);
-              // note: correct already updated via setCorrect above
+              onFinish(finalCorrect, questions.length);
             } else {
               setPicked(null);
               setIdx((i) => i + 1);
