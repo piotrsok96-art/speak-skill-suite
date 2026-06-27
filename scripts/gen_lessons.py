@@ -1672,6 +1672,7 @@ export interface BuiltinLesson {
   fillBlanks: BuiltinFillBlank[];
   translations: BuiltinTranslation[];
   quiz: BuiltinQuizQ[];
+  pretest: BuiltinQuizQ[];
   extraVocab: BuiltinVocab[];
   extraIdioms: BuiltinIdiom[];
   extraDialog: BuiltinDialog;
@@ -1686,14 +1687,15 @@ for n, (slug, title_pl, level) in enumerate(TOPICS, start=1):
     idioms = topic_idioms(slug, 5)
     extraV = topic_extra_vocab(slug, 10)
     extraI = topic_extra_idioms(slug, 2)
-    extraD = topic_extra_dialog(slug)
     grammar = GRAMMAR_POOL[(n-1) % len(GRAMMAR_POOL)]
     secondary = GRAMMAR_POOL[(n-1+7) % len(GRAMMAR_POOL)]
     dialog1 = DIALOGS[slug]
-    dialog2 = list(reversed(dialog1[:6]))
-    quiz = make_quiz(vocab, idioms, grammar)
+    dialog2 = make_second_dialog(title_pl, vocab, idioms)
+    extraD = make_extra_dialog(title_pl, vocab, idioms)
+    quiz = make_quiz(vocab, idioms, grammar, secondary)
+    pretest = make_pretest(vocab, idioms, grammar)
     fills = make_fill_blanks(vocab, dialog1)
-    trans = make_translations(dialog1)
+    trans = make_translations(dialog2, extraD)
     mistakes = mistakes_for(grammar[0])
 
     OUT.append("{")
@@ -1711,6 +1713,7 @@ for n, (slug, title_pl, level) in enumerate(TOPICS, start=1):
     OUT.append("fillBlanks:[" + ",".join(fill_obj(f) for f in fills) + "],")
     OUT.append("translations:[" + ",".join(trans_obj(t) for t in trans) + "],")
     OUT.append("quiz:" + quiz_obj(quiz) + ",")
+    OUT.append("pretest:" + quiz_obj(pretest) + ",")
     OUT.append("extraVocab:[" + ",".join(vocab_obj(lid+"-x", i, v) for i, v in enumerate(extraV)) + "],")
     OUT.append("extraIdioms:[" + ",".join(idiom_obj(lid+"-x", i, idm) for i, idm in enumerate(extraI)) + "],")
     OUT.append("extraDialog:" + dlg_obj(extraD) + ",")
