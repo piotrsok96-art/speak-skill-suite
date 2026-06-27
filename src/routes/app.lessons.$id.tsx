@@ -241,7 +241,7 @@ function LessonDetail() {
   const allVocab = [...lesson.vocab, ...(extraVocabShown ? lesson.extraVocab : [])];
   const allIdioms = [...lesson.idioms, ...(extraIdiomsShown ? lesson.extraIdioms : [])];
 
-  const pretestQs = useMemo(() => lesson.quiz.slice(0, 5), [lesson]);
+  const pretestQs = useMemo(() => lesson.pretest ?? lesson.quiz.slice(0, 5), [lesson]);
 
   return (
     <article className="space-y-8">
