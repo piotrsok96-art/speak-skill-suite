@@ -1635,14 +1635,6 @@ def make_fill_blanks(vocab, dialog):
             items.append({"sentence": sentence, "answer": mid, "hint": line[2], "full": line[1]})
     return items
 
-def make_translations(dialog):
-    """Pick 6 dialog lines (pl→en) as translation drills."""
-    picks = []
-    for line in dialog:
-        if len(picks) >= 6: break
-        if len(line[1].split()) < 3: continue
-        picks.append({"pl": line[2], "en": line[1]})
-    return picks
 
 def fill_obj(f):
     return ("{sentence:" + ts_string(f["sentence"]) + ",answer:" + ts_string(f["answer"])
