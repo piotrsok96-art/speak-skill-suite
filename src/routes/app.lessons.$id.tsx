@@ -121,6 +121,35 @@ function LessonDetail() {
     });
   };
 
+  const markIdiom = (i: { en: string; pl: string; example: string }, status: WordStatus) => {
+    update((d) => {
+      const key = idiomKey(lesson.id, i.en);
+      const wordStatus = { ...d.wordStatus, [key]: status };
+      let srs = d.srs;
+      if (status === "learning") {
+        if (!srs[key]) {
+          srs = {
+            ...srs,
+            [key]: scheduleNew({
+              key,
+              en: i.en,
+              ipa: "",
+              plPron: "",
+              pl: i.pl,
+              example: i.example,
+              source: lesson.id,
+            }),
+          };
+        }
+      } else if (status === "known" && srs[key]) {
+        const next = { ...srs };
+        delete next[key];
+        srs = next;
+      }
+      return withStreakBump({ ...d, wordStatus, srs }, 1);
+    });
+  };
+
   const saveAllVocab = () => {
     const vocab = [...lesson.vocab, ...(extraVocabShown ? lesson.extraVocab : [])];
     update((d) => {
@@ -241,7 +270,7 @@ function LessonDetail() {
   const allVocab = [...lesson.vocab, ...(extraVocabShown ? lesson.extraVocab : [])];
   const allIdioms = [...lesson.idioms, ...(extraIdiomsShown ? lesson.extraIdioms : [])];
 
-  const pretestQs = useMemo(() => lesson.quiz.slice(0, 5), [lesson]);
+  const pretestQs = useMemo(() => lesson.pretest ?? lesson.quiz.slice(0, 5), [lesson]);
 
   return (
     <article className="space-y-8">
@@ -387,20 +416,60 @@ function LessonDetail() {
           </Button>
         </div>
         <div className="space-y-2">
-          {allIdioms.map((i, idx) => (
-            <div key={idx} className="rounded-lg border bg-card p-3">
-              <div className="flex items-baseline gap-2">
-                <SpeakButton text={i.en} />
-                <span className="font-bold" style={{ color: "#000" }}>
-                  {i.en}
-                </span>
-                <span className="text-sm">— {i.pl}</span>
+          {allIdioms.map((i, idx) => {
+            const ikey = idiomKey(lesson.id, i.en);
+            const status = data.wordStatus[ikey];
+            return (
+              <div
+                key={idx}
+                className={cn(
+                  "rounded-lg border p-3 transition-colors",
+                  status === "known" && "border-green-500/40 bg-green-500/5",
+                  status === "learning" && "border-amber-500/40 bg-amber-500/5",
+                  !status && "bg-card",
+                )}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2 flex-wrap">
+                      <SpeakButton text={i.en} />
+                      <span className="font-bold" style={{ color: "#000" }}>
+                        {i.en}
+                      </span>
+                      <span className="text-sm">— {i.pl}</span>
+                    </div>
+                    {i.example && (
+                      <p className="text-sm text-muted-foreground italic mt-1">{i.example}</p>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <button
+                      onClick={() => markIdiom(i, "known")}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors",
+                        status === "known"
+                          ? "bg-green-600 text-white border-green-600"
+                          : "hover:bg-green-500/10 hover:border-green-500/40 text-muted-foreground",
+                      )}
+                    >
+                      <Check className="h-3 w-3" /> Znam
+                    </button>
+                    <button
+                      onClick={() => markIdiom(i, "learning")}
+                      className={cn(
+                        "inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors",
+                        status === "learning"
+                          ? "bg-amber-500 text-white border-amber-500"
+                          : "hover:bg-amber-500/10 hover:border-amber-500/40 text-muted-foreground",
+                      )}
+                    >
+                      <X className="h-3 w-3" /> Nie znam
+                    </button>
+                  </div>
+                </div>
               </div>
-              {i.example && (
-                <p className="text-sm text-muted-foreground italic mt-1">{i.example}</p>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
         {!extraIdiomsShown && (
           <Button
@@ -507,6 +576,10 @@ function LessonDetail() {
 
 function wordKey(lessonId: string, en: string): string {
   return `${lessonId}::${en.toLowerCase()}`;
+}
+
+function idiomKey(lessonId: string, en: string): string {
+  return `idiom::${lessonId}::${en.toLowerCase()}`;
 }
 
 

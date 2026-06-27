@@ -1252,94 +1252,121 @@ DIALOGS = {
 }
 
 # --- Quiz generation helpers ---
-def make_quiz(vocab, idioms, grammar):
-    """Build 10 quiz questions: 4 vocab-translate (EN->PL), 2 idiom-meaning, 2 fill-in, 2 grammar-pick."""
+import random as _rnd
+
+def _shuffle(seed_str, lst):
+    r = _rnd.Random(hash(seed_str) & 0xFFFFFFFF)
+    out = list(lst)
+    r.shuffle(out)
+    return out
+
+def _grammar_q(g, ex_idx, salt):
+    g_title, _, g_examples = g
+    if ex_idx >= len(g_examples):
+        ex_idx = ex_idx % len(g_examples)
+    ex = g_examples[ex_idx]
+    words = ex.split()
+    if len(words) < 4:
+        return None
+    candidates = [i for i, w in enumerate(words) if len(w.strip(".,!?'\"")) >= 4]
+    target_idx = candidates[len(candidates)//2] if candidates else len(words)//2
+    target = words[target_idx].strip(".,!?'\"")
+    sentence = ex.replace(target, "_____", 1)
+    opts = [target]
+    pool = [w.strip(".,!?'\"") for w in ex.split() if w.strip(".,!?'\"").lower() != target.lower()]
+    for d in pool:
+        if d and d not in opts and len(opts) < 4:
+            opts.append(d)
+    for other in g_examples:
+        if len(opts) >= 4: break
+        for w in other.split():
+            w = w.strip(".,!?'\"")
+            if w and w not in opts and len(opts) < 4:
+                opts.append(w)
+    while len(opts) < 4:
+        opts.append("—")
+    opts = _shuffle(ex + salt, opts)
+    return {
+        "type": "grammar",
+        "q": f"Gramatyka ({g_title}). Uzupełnij: „{sentence}\"",
+        "options": opts,
+        "correct": opts.index(target),
+        "explain": f"Poprawnie: „{ex}\""
+    }
+
+def _vocab_translate_q(vocab, idx, salt):
+    w = vocab[idx % len(vocab)]
+    opts = [w[3]]
+    for v in vocab:
+        if v[3] != w[3] and v[3] not in opts and len(opts) < 4:
+            opts.append(v[3])
+    opts = _shuffle(w[0] + salt, opts)
+    return {
+        "type": "translate",
+        "q": f"Co oznacza słowo „{w[0]}\"?",
+        "options": opts,
+        "correct": opts.index(w[3]),
+        "explain": f"„{w[0]}\" = {w[3]} (np. {w[4]})"
+    }
+
+def _idiom_q(idioms, idx, salt):
+    idm = idioms[idx % len(idioms)]
+    opts = [idm[1]]
+    for k in IDIOM_POOL:
+        if k[1] != idm[1] and k[1] not in opts and len(opts) < 4:
+            opts.append(k[1])
+    opts = _shuffle(idm[0] + salt, opts)
+    return {
+        "type": "idiom",
+        "q": f"Co znaczy idiom „{idm[0]}\"?",
+        "options": opts,
+        "correct": opts.index(idm[1]),
+        "explain": f"„{idm[0]}\" = {idm[1]}"
+    }
+
+def _fill_q(vocab, idx, salt):
+    w = vocab[idx % len(vocab)]
+    sentence = w[4].replace(w[0], "_____", 1)
+    if "_____" not in sentence:
+        sentence = f"I need to _____ this. ({w[3]})"
+    opts = [w[0]]
+    for v in vocab:
+        if v[0] != w[0] and v[0] not in opts and len(opts) < 4:
+            opts.append(v[0])
+    opts = _shuffle(w[0] + "f" + salt, opts)
+    return {
+        "type": "fill",
+        "q": f"Uzupełnij: „{sentence}\"",
+        "options": opts,
+        "correct": opts.index(w[0]),
+        "explain": f"Pełne zdanie: „{w[4]}\""
+    }
+
+def make_pretest(vocab, idioms, grammar):
     qs = []
-    # Helper to pick distractors
-    pool_pl = [v[3] for v in vocab]
-    for i in range(4):
-        w = vocab[i]
-        # distractors from other vocab
-        opts = [w[3]]
-        j = 0
-        for v in vocab:
-            if v[3] != w[3]:
-                opts.append(v[3])
-                j += 1
-            if j >= 3: break
-        import random
-        random.seed(hash(w[0])%1000)
-        random.shuffle(opts)
-        qs.append({
-            "type": "translate",
-            "q": f"Co oznacza słowo „{w[0]}\"?",
-            "options": opts,
-            "correct": opts.index(w[3]),
-            "explain": f"„{w[0]}\" = {w[3]} (np. {w[4]})"
-        })
-    # idiom meaning
-    for i in range(min(2, len(idioms))):
-        idm = idioms[i]
-        opts = [idm[1]]
-        for k in IDIOM_POOL[:6]:
-            if k[1] != idm[1] and len(opts) < 4:
-                opts.append(k[1])
-        import random
-        random.seed(hash(idm[0])%1000)
-        random.shuffle(opts)
-        qs.append({
-            "type": "idiom",
-            "q": f"Co znaczy idiom „{idm[0]}\"?",
-            "options": opts,
-            "correct": opts.index(idm[1]),
-            "explain": f"„{idm[0]}\" = {idm[1]}"
-        })
-    # fill-in based on vocab examples
+    for i in range(3):
+        qs.append(_vocab_translate_q(vocab, i, "pre"))
+    qs.append(_idiom_q(idioms, 0, "pre"))
+    g_q = _grammar_q(grammar, 0, "pre")
+    if g_q: qs.append(g_q)
+    else: qs.append(_fill_q(vocab, 3, "pre"))
+    return qs[:5]
+
+def make_quiz(vocab, idioms, grammar, secondary):
+    qs = []
+    for i in range(3):
+        qs.append(_vocab_translate_q(vocab, 5 + i, "post"))
+    for i in range(min(2, max(0, len(idioms) - 1))):
+        qs.append(_idiom_q(idioms, 1 + i, "post"))
     for i in range(2):
-        w = vocab[5+i]
-        sentence = w[4].replace(w[0], "_____", 1)
-        if "_____" not in sentence:
-            sentence = f"I need to _____ this. ({w[3]})"
-        opts = [w[0]]
-        for v in vocab:
-            if v[0] != w[0] and len(opts) < 4:
-                opts.append(v[0])
-        import random
-        random.seed(hash(w[0]+"f")%1000)
-        random.shuffle(opts)
-        qs.append({
-            "type": "fill",
-            "q": f"Uzupełnij: „{sentence}\"",
-            "options": opts,
-            "correct": opts.index(w[0]),
-            "explain": f"Pełne zdanie: „{w[4]}\""
-        })
-    # grammar-based
-    g_title, g_rule, g_examples = grammar
-    for i, ex in enumerate(g_examples[:2]):
-        words = ex.split()
-        if len(words) > 4:
-            target_idx = len(words) // 2
-            target = words[target_idx].strip(".,!?")
-            sentence = ex.replace(target, "_____", 1)
-            opts = [target]
-            distractor_words = [w.strip(".,") for w in ex.split() if w.strip(".,").lower() != target.lower()]
-            for d in distractor_words[:3]:
-                if d not in opts and len(opts) < 4:
-                    opts.append(d)
-            while len(opts) < 4:
-                opts.append("...")
-            import random
-            random.seed(hash(ex)%1000)
-            random.shuffle(opts)
-            qs.append({
-                "type": "grammar",
-                "q": f"Gramatyka ({g_title}). Uzupełnij: „{sentence}\"",
-                "options": opts,
-                "correct": opts.index(target),
-                "explain": f"Poprawnie: „{ex}\""
-            })
-    return qs[:10]
+        qs.append(_fill_q(vocab, 8 + i, "post"))
+    for i in range(3):
+        g_q = _grammar_q(grammar, i, "post")
+        if g_q: qs.append(g_q)
+    for i in range(2):
+        g_q = _grammar_q(secondary, i, "post2")
+        if g_q: qs.append(g_q)
+    return qs[:12]
 
 # --- Build lessons ---
 def slug_id(s, n):
@@ -1369,14 +1396,60 @@ def topic_extra_vocab(topic_slug, n=10):
     idx = (abs(hash(topic_slug+"x")) + 7) % len(COMMON_VOCAB)
     return [COMMON_VOCAB[(idx+i) % len(COMMON_VOCAB)] for i in range(n)]
 
-def topic_extra_dialog(topic_slug):
-    """Lightweight second dialog."""
-    base = DIALOGS[topic_slug]
-    # Reverse speakers / shift
-    return [(b[0], b[1], b[2]) for b in base[:4]] + [
-        ("A","Anyway, we should continue this later.","W każdym razie powinniśmy do tego wrócić później."),
-        ("B","Sounds good. Talk soon!","Brzmi dobrze. Do usłyszenia!"),
+def make_second_dialog(topic_pl, vocab, idioms):
+    """Distinct second dialog — meta-conversation about lesson vocab/idioms."""
+    v = vocab
+    i = idioms
+    return [
+        ("A", f"Let's go deeper into '{topic_pl.lower()}'. Can you use '{v[10][0]}' in a sentence?",
+              f"Wejdźmy głębiej w temat. Użyjesz słowa '{v[10][0]}' w zdaniu?"),
+        ("B", v[10][4], f"Po polsku: znaczy '{v[10][3]}'."),
+        ("A", f"Nice. And what about '{v[11][0]}' — when would you use it?",
+              f"Świetnie. A '{v[11][0]}' — kiedy to powiesz?"),
+        ("B", v[11][4] + " It means " + v[11][3] + ".",
+              f"Znaczy '{v[11][3]}'."),
+        ("A", f"There's also the idiom '{i[1][0]}'. Do you know it?",
+              f"Jest też idiom '{i[1][0]}'. Znasz go?"),
+        ("B", f"Yes — {i[1][2]} It means '{i[1][1]}'.",
+              f"Tak — znaczy '{i[1][1]}'."),
+        ("A", f"Last one: '{v[12][0]}'. Try a sentence.",
+              f"Ostatnie: '{v[12][0]}'. Spróbuj zdania."),
+        ("B", v[12][4], f"Czyli: '{v[12][3]}'."),
     ]
+
+def make_extra_dialog(topic_pl, vocab, idioms):
+    v = vocab
+    i = idioms
+    return [
+        ("A", f"One more practice round. What does '{v[15][0]}' mean to you?",
+              f"Jeszcze jedna runda. Co znaczy dla ciebie '{v[15][0]}'?"),
+        ("B", v[15][4], f"Po polsku: '{v[15][3]}'."),
+        ("A", f"Good. Now use '{v[16][0]}' in context.",
+              f"Dobrze. A teraz '{v[16][0]}' w kontekście."),
+        ("B", v[16][4] + " — basically " + v[16][3] + ".",
+              f"Czyli: '{v[16][3]}'."),
+        ("A", f"And the idiom '{i[2][0]}'?",
+              f"A idiom '{i[2][0]}'?"),
+        ("B", f"{i[2][2]} It's used when something is '{i[2][1]}'.",
+              f"Używamy, gdy coś jest '{i[2][1]}'."),
+        ("A", "Great progress. Let's wrap up.",
+              "Świetny postęp. Kończymy."),
+        ("B", "Thanks — I feel more confident now.",
+              "Dzięki — czuję się pewniej."),
+    ]
+
+def make_translations(second_dialog, extra_dialog):
+    """6 PL→EN drills from second + extra dialogs (NEW lines, not the main lesson dialog)."""
+    out = []
+    for line in second_dialog:
+        if len(out) >= 4: break
+        if len(line[1].split()) < 3: continue
+        out.append({"pl": line[2], "en": line[1]})
+    for line in extra_dialog:
+        if len(out) >= 6: break
+        if len(line[1].split()) < 3: continue
+        out.append({"pl": line[2], "en": line[1]})
+    return out
 
 def topic_extra_idioms(topic_slug, n=2):
     idx = (abs(hash(topic_slug+"xi")) + 13) % len(IDIOM_POOL)
@@ -1562,14 +1635,6 @@ def make_fill_blanks(vocab, dialog):
             items.append({"sentence": sentence, "answer": mid, "hint": line[2], "full": line[1]})
     return items
 
-def make_translations(dialog):
-    """Pick 6 dialog lines (pl→en) as translation drills."""
-    picks = []
-    for line in dialog:
-        if len(picks) >= 6: break
-        if len(line[1].split()) < 3: continue
-        picks.append({"pl": line[2], "en": line[1]})
-    return picks
 
 def fill_obj(f):
     return ("{sentence:" + ts_string(f["sentence"]) + ",answer:" + ts_string(f["answer"])
@@ -1607,6 +1672,7 @@ export interface BuiltinLesson {
   fillBlanks: BuiltinFillBlank[];
   translations: BuiltinTranslation[];
   quiz: BuiltinQuizQ[];
+  pretest: BuiltinQuizQ[];
   extraVocab: BuiltinVocab[];
   extraIdioms: BuiltinIdiom[];
   extraDialog: BuiltinDialog;
@@ -1621,14 +1687,15 @@ for n, (slug, title_pl, level) in enumerate(TOPICS, start=1):
     idioms = topic_idioms(slug, 5)
     extraV = topic_extra_vocab(slug, 10)
     extraI = topic_extra_idioms(slug, 2)
-    extraD = topic_extra_dialog(slug)
     grammar = GRAMMAR_POOL[(n-1) % len(GRAMMAR_POOL)]
     secondary = GRAMMAR_POOL[(n-1+7) % len(GRAMMAR_POOL)]
     dialog1 = DIALOGS[slug]
-    dialog2 = list(reversed(dialog1[:6]))
-    quiz = make_quiz(vocab, idioms, grammar)
+    dialog2 = make_second_dialog(title_pl, vocab, idioms)
+    extraD = make_extra_dialog(title_pl, vocab, idioms)
+    quiz = make_quiz(vocab, idioms, grammar, secondary)
+    pretest = make_pretest(vocab, idioms, grammar)
     fills = make_fill_blanks(vocab, dialog1)
-    trans = make_translations(dialog1)
+    trans = make_translations(dialog2, extraD)
     mistakes = mistakes_for(grammar[0])
 
     OUT.append("{")
@@ -1646,6 +1713,7 @@ for n, (slug, title_pl, level) in enumerate(TOPICS, start=1):
     OUT.append("fillBlanks:[" + ",".join(fill_obj(f) for f in fills) + "],")
     OUT.append("translations:[" + ",".join(trans_obj(t) for t in trans) + "],")
     OUT.append("quiz:" + quiz_obj(quiz) + ",")
+    OUT.append("pretest:" + quiz_obj(pretest) + ",")
     OUT.append("extraVocab:[" + ",".join(vocab_obj(lid+"-x", i, v) for i, v in enumerate(extraV)) + "],")
     OUT.append("extraIdioms:[" + ",".join(idiom_obj(lid+"-x", i, idm) for i, idm in enumerate(extraI)) + "],")
     OUT.append("extraDialog:" + dlg_obj(extraD) + ",")
