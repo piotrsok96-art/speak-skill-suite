@@ -1635,30 +1635,34 @@ def _fill_q(vocab, idx, salt):
     }
 
 def make_pretest(vocab, idioms, grammar):
+    """Pre-test: 2 vocab + 1 idiom + 3 grammar = 6 pytań (więcej gramatyki)."""
     qs = []
-    for i in range(3):
-        qs.append(_vocab_translate_q(vocab, i, "pre"))
+    qs.append(_vocab_translate_q(vocab, 0, "pre"))
+    qs.append(_vocab_translate_q(vocab, 2, "pre"))
     qs.append(_idiom_q(idioms, 0, "pre"))
-    g_q = _grammar_q(grammar, 0, "pre")
-    if g_q: qs.append(g_q)
-    else: qs.append(_fill_q(vocab, 3, "pre"))
-    return qs[:5]
+    for i in range(3):
+        g_q = _grammar_q(grammar, i, "pre")
+        if g_q: qs.append(g_q)
+    return qs[:6]
 
 def make_quiz(vocab, idioms, grammar, secondary):
+    """Post-quiz: 3 vocab + 2 idiom + 2 fill + 5 grammar (3 main + 2 secondary) = 12 pytań."""
     qs = []
     for i in range(3):
-        qs.append(_vocab_translate_q(vocab, 5 + i, "post"))
+        qs.append(_vocab_translate_q(vocab, 6 + i, "post"))
     for i in range(min(2, max(0, len(idioms) - 1))):
         qs.append(_idiom_q(idioms, 1 + i, "post"))
     for i in range(2):
-        qs.append(_fill_q(vocab, 8 + i, "post"))
+        qs.append(_fill_q(vocab, 10 + i, "post"))
+    # Grammar — using real MCQ pool; ex_idx shifted so pre/post don't overlap.
     for i in range(3):
-        g_q = _grammar_q(grammar, i, "post")
+        g_q = _grammar_q(grammar, 3 + i, "post")
         if g_q: qs.append(g_q)
     for i in range(2):
         g_q = _grammar_q(secondary, i, "post2")
         if g_q: qs.append(g_q)
     return qs[:12]
+
 
 # --- Build lessons ---
 def slug_id(s, n):
