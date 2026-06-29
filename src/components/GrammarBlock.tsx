@@ -16,6 +16,29 @@ function GrammarCard({ g, label }: { g: BuiltinGrammar; label?: string }) {
       )}
       <h3 className="font-semibold text-base" style={{ color: "#000" }}>{g.title}</h3>
       <p className="text-sm whitespace-pre-wrap leading-relaxed">{g.rule}</p>
+      {g.forms && g.forms.length > 0 && (
+        <div className="rounded-md border bg-secondary/40 overflow-hidden">
+          <p className="text-[11px] uppercase tracking-wide text-muted-foreground px-3 pt-2">
+            Formy / struktury
+          </p>
+          <table className="w-full text-xs">
+            <tbody>
+              {g.forms.map((f, i) => (
+                <tr key={i} className="border-t first:border-t-0">
+                  <td className="px-3 py-1.5 font-mono font-semibold whitespace-nowrap align-top w-1/3">
+                    {f.label}
+                  </td>
+                  <td className="px-3 py-1.5 align-top">
+                    <div>{f.a}</div>
+                    {f.b && <div className="text-muted-foreground mt-0.5">{f.b}</div>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="text-[11px] uppercase tracking-wide text-muted-foreground mt-2">Przykłady</p>
       <ul className="space-y-1.5 text-sm">
         {g.examples.map((e, i) => (
           <li key={i} className="flex items-start gap-2">
@@ -27,6 +50,7 @@ function GrammarCard({ g, label }: { g: BuiltinGrammar; label?: string }) {
     </div>
   );
 }
+
 
 export function GrammarBlock({ primary, secondary, mistakes }: Props) {
   return (
