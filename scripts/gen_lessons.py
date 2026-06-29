@@ -1668,12 +1668,24 @@ def make_quiz(vocab, idioms, grammar, secondary):
 def slug_id(s, n):
     return f"l{n:02d}-{s}"
 
+TRIVIAL_WORDS = {
+    "weather","weekend","menu","ticket","card","size","tip","hobby","diet",
+    "like","post","comment","share","rent","fare","gate","cardio","calorie",
+    "muscle","setting","cloud","battery","crash","update","music","sport",
+    "movie","film","cat","dog","red","blue","big","small","yes","no",
+    "hello","goodbye","family","mum","dad","table","chair","door","window",
+    "breakfast","lunch","dinner","tea","coffee","milk","water","bread",
+    "house","flat","room","bed","day","night","week","month","year",
+}
+
 def topic_vocab(topic_slug, n=25):
-    core = CORE.get(topic_slug, [])
+    # Skip trivial CORE entries — keep only B1/B2 level words.
+    core = [v for v in CORE.get(topic_slug, []) if v[0].lower() not in TRIVIAL_WORDS]
     # pad with COMMON_VOCAB, deterministic shift
     idx = abs(hash(topic_slug)) % len(COMMON_VOCAB)
     extra = []
-    used = {c[0] for c in core}
+    used = {c[0].lower() for c in core}
+
     i = 0
     while len(core) + len(extra) < n and i < len(COMMON_VOCAB):
         w = COMMON_VOCAB[(idx + i) % len(COMMON_VOCAB)]
