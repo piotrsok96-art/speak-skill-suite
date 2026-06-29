@@ -117,7 +117,14 @@ function LessonDetail() {
           srs = next;
         }
       }
-      return withStreakBump({ ...d, wordStatus, srs }, 1);
+      const updated = withStreakBump({ ...d, wordStatus, srs }, 1);
+      if (status === "learning") {
+        const dueCount = Object.values(updated.srs).filter((s) => s.dueAt <= Date.now() + 86_400_000).length;
+        toast.success(`„${v.en}" dodane do powtórek (kolejka: ${dueCount})`, {
+          action: { label: "Powtórka", onClick: () => navigate({ to: "/app/srs" }) },
+        });
+      }
+      return updated;
     });
   };
 
@@ -146,9 +153,17 @@ function LessonDetail() {
         delete next[key];
         srs = next;
       }
-      return withStreakBump({ ...d, wordStatus, srs }, 1);
+      const updated = withStreakBump({ ...d, wordStatus, srs }, 1);
+      if (status === "learning") {
+        const dueCount = Object.values(updated.srs).filter((s) => s.dueAt <= Date.now() + 86_400_000).length;
+        toast.success(`Idiom „${i.en}" dodany do powtórek (kolejka: ${dueCount})`, {
+          action: { label: "Powtórka", onClick: () => navigate({ to: "/app/srs" }) },
+        });
+      }
+      return updated;
     });
   };
+
 
   const saveAllVocab = () => {
     const vocab = [...lesson.vocab, ...(extraVocabShown ? lesson.extraVocab : [])];
