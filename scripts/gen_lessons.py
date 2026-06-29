@@ -1968,7 +1968,9 @@ export interface BuiltinVocab { id: string; en: string; ipa: string; plPron: str
 export interface BuiltinIdiom { id: string; en: string; pl: string; example: string; }
 export interface BuiltinDialogLine { speaker: string; en: string; pl: string; }
 export interface BuiltinDialog { lines: BuiltinDialogLine[]; }
-export interface BuiltinGrammar { title: string; rule: string; examples: string[]; }
+export interface BuiltinGrammarForm { label: string; a: string; b: string; }
+export interface BuiltinGrammar { title: string; rule: string; examples: string[]; forms: BuiltinGrammarForm[]; }
+
 export interface BuiltinQuizQ { q: string; options: string[]; correct: number; explain: string; }
 export interface BuiltinFillBlank { sentence: string; answer: string; hint: string; full: string; }
 export interface BuiltinTranslation { pl: string; en: string; }
