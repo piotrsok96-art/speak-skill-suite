@@ -1562,38 +1562,29 @@ def _shuffle(seed_str, lst):
     return out
 
 def _grammar_q(g, ex_idx, salt):
-    g_title, _, g_examples = g
+    """Pick a real grammar MCQ from GRAMMAR_QUIZ_POOL[title]; deterministic rotation."""
+    g_title = g[0]
+    pool = GRAMMAR_QUIZ_POOL.get(g_title)
+    if pool:
+        offset = (abs(hash(salt)) // 7) % len(pool)
+        item = pool[(offset + ex_idx) % len(pool)]
+        # shuffle options deterministically per (title, salt, ex_idx) to avoid pre/post overlap
+        correct_text = item["options"][item["correct"]]
+        opts = _shuffle(g_title + salt + str(ex_idx), list(item["options"]))
+        return {
+            "type": "grammar",
+            "q": f"Gramatyka ({g_title}). {item['q']}",
+            "options": opts,
+            "correct": opts.index(correct_text),
+            "explain": item["explain"],
+        }
+    # Fallback: old fill-in (shouldn't happen if pool covers all grammars).
+    g_examples = g[2]
     if ex_idx >= len(g_examples):
         ex_idx = ex_idx % len(g_examples)
     ex = g_examples[ex_idx]
-    words = ex.split()
-    if len(words) < 4:
-        return None
-    candidates = [i for i, w in enumerate(words) if len(w.strip(".,!?'\"")) >= 4]
-    target_idx = candidates[len(candidates)//2] if candidates else len(words)//2
-    target = words[target_idx].strip(".,!?'\"")
-    sentence = ex.replace(target, "_____", 1)
-    opts = [target]
-    pool = [w.strip(".,!?'\"") for w in ex.split() if w.strip(".,!?'\"").lower() != target.lower()]
-    for d in pool:
-        if d and d not in opts and len(opts) < 4:
-            opts.append(d)
-    for other in g_examples:
-        if len(opts) >= 4: break
-        for w in other.split():
-            w = w.strip(".,!?'\"")
-            if w and w not in opts and len(opts) < 4:
-                opts.append(w)
-    while len(opts) < 4:
-        opts.append("—")
-    opts = _shuffle(ex + salt, opts)
-    return {
-        "type": "grammar",
-        "q": f"Gramatyka ({g_title}). Uzupełnij: „{sentence}\"",
-        "options": opts,
-        "correct": opts.index(target),
-        "explain": f"Poprawnie: „{ex}\""
-    }
+    return None
+
 
 def _vocab_translate_q(vocab, idx, salt):
     w = vocab[idx % len(vocab)]
