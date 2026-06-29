@@ -1784,8 +1784,15 @@ def dlg_obj(lines):
     ) + "]}"
 
 def grammar_obj(g):
+    forms = GRAMMAR_FORMS.get(g[0], [])
+    forms_ts = "[" + ",".join(
+        "{label:" + ts_string(f[0]) + ",a:" + ts_string(f[1]) + ",b:" + ts_string(f[2]) + "}"
+        for f in forms
+    ) + "]"
     return ("{title:" + ts_string(g[0]) + ",rule:" + ts_string(g[1])
-            + ",examples:[" + ",".join(ts_string(e) for e in g[2]) + "]}")
+            + ",examples:[" + ",".join(ts_string(e) for e in g[2]) + "]"
+            + ",forms:" + forms_ts + "}")
+
 
 def quiz_obj(qs):
     items = []
