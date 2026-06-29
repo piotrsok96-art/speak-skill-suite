@@ -1687,13 +1687,14 @@ def topic_vocab(topic_slug, n=25):
     used = {c[0].lower() for c in core}
 
     i = 0
-    while len(core) + len(extra) < n and i < len(COMMON_VOCAB):
+    while len(core) + len(extra) < n and i < len(COMMON_VOCAB) * 2:
         w = COMMON_VOCAB[(idx + i) % len(COMMON_VOCAB)]
-        if w[0] not in used:
+        if w[0].lower() not in used and w[0].lower() not in TRIVIAL_WORDS:
             extra.append(w)
-            used.add(w[0])
+            used.add(w[0].lower())
         i += 1
     return core + extra
+
 
 def topic_idioms(topic_slug, n=5):
     idx = abs(hash(topic_slug+"i")) % len(IDIOM_POOL)
