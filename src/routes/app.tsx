@@ -88,6 +88,23 @@ function AppLayout() {
             </div>
           )}
           {profile && (
+            <div className="mt-2 flex gap-1">
+              {(["piotr", "monika"] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => switchProfile(p)}
+                  className={cn(
+                    "flex-1 rounded-md border px-2 py-1 text-xs capitalize transition-colors",
+                    profile === p
+                      ? "bg-foreground text-background border-foreground"
+                      : "hover:bg-secondary text-muted-foreground",
+                  )}
+                >
+                  {p}
+                </button>
+              ))}
+          )}
+          {profile && (
             <div className="mt-3 rounded-lg bg-secondary/60 px-3 py-2 text-xs">
               <div className="flex items-center justify-between">
                 <span className="inline-flex items-center gap-1 font-medium">
