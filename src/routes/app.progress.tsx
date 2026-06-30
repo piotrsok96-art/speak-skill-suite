@@ -91,8 +91,8 @@ function Progress() {
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Stat label="W toku" value={stats.started} />
-        <Stat label="Słówka „znam"" value={stats.known} />
-        <Stat label="Słówka „uczę się"" value={stats.learning} sub="w kolejce SRS" />
+        <Stat label="Słówka znam" value={stats.known} />
+        <Stat label="Słówka uczę się" value={stats.learning} sub="w kolejce SRS" />
         <Stat label="Pre-test śr." value={`${stats.preAvg}%`} />
         <Stat label="Quiz końcowy śr." value={`${stats.quizAvg}%`} />
         <Stat label="Streak" value={`${data.streak.current} dni`} sub={`Najdłuższy: ${data.streak.longest}`} />
