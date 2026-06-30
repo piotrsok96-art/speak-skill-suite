@@ -267,6 +267,38 @@ function LessonDetail() {
     toast.success("Lekcja oznaczona jako ukończona");
   };
 
+  const resetLesson = () => {
+    if (typeof window !== "undefined" && !window.confirm("Zresetować całą lekcję? Usuniemy postęp, status słówek z tej lekcji i powtórki z niej dodane.")) return;
+    update((d) => {
+      const lessonPrefix = `${lesson.id}::`;
+      const idiomPrefix = `idiom::${lesson.id}::`;
+      const wordStatus = { ...d.wordStatus };
+      for (const k of Object.keys(wordStatus)) {
+        if (k.startsWith(lessonPrefix) || k.startsWith(idiomPrefix)) delete wordStatus[k];
+      }
+      const srs = { ...d.srs };
+      for (const k of Object.keys(srs)) {
+        if (srs[k].source === lesson.id) delete srs[k];
+      }
+      const lessonProgress = { ...d.lessonProgress };
+      delete lessonProgress[lesson.id];
+      return {
+        ...d,
+        wordStatus,
+        srs,
+        lessonProgress,
+        lessons: d.lessons.filter((l) => l.id !== lesson.id),
+        results: d.results.filter((r) => r.lessonId !== lesson.id),
+      };
+    });
+    setQuizOpen(false);
+    setPretestOpen(false);
+    setExtraVocabShown(false);
+    setExtraDialogShown(false);
+    setExtraIdiomsShown(false);
+    toast.success("Lekcja zresetowana — możesz zacząć od nowa.");
+  };
+
   const recordScore = (patch: Partial<LessonProgress>) => {
     update((d) => {
       const prev = d.lessonProgress[lesson.id] ?? {};
