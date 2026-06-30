@@ -49,13 +49,20 @@ function AppLayout() {
   const nav = [
     { to: "/app/lessons", label: "Lekcje (50)", icon: GraduationCap, badge: null as number | null },
     { to: "/app/srs", label: "Powtórka dnia", icon: Repeat2, badge: dueCount || null },
-    { to: "/app/lesson", label: "Wklej lekcję", icon: FilePlus2, badge: null },
     { to: "/app/vocab-review", label: "Powtórka słówek", icon: Repeat, badge: null },
     { to: "/app/grammar-quiz", label: "Quiz gramatyczny", icon: Sparkles, badge: null },
     { to: "/app/dictionary", label: "Mój słowniczek", icon: Library, badge: null },
     { to: "/app/progress", label: "Postępy", icon: BarChart3, badge: null },
     { to: "/app/help", label: "Jak używać", icon: HelpCircle, badge: null },
+    { to: "/app/lesson", label: "Wklej lekcję", icon: FilePlus2, badge: null },
   ] as const;
+
+  const switchProfile = (p: "piotr" | "monika") => {
+    if (p !== profile) {
+      setActiveProfile(p);
+      navigate({ to: "/app/lessons" });
+    }
+  };
 
   const logout = () => {
     setActiveProfile(null);
@@ -78,6 +85,24 @@ function AppLayout() {
                 {profile[0].toUpperCase()}
               </div>
               <div className="text-sm capitalize font-semibold">{profile}</div>
+            </div>
+          )}
+          {profile && (
+            <div className="mt-2 flex gap-1">
+              {(["piotr", "monika"] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => switchProfile(p)}
+                  className={cn(
+                    "flex-1 rounded-md border px-2 py-1 text-xs capitalize transition-colors",
+                    profile === p
+                      ? "bg-foreground text-background border-foreground"
+                      : "hover:bg-secondary text-muted-foreground",
+                  )}
+                >
+                  {p}
+                </button>
+              ))}
             </div>
           )}
           {profile && (

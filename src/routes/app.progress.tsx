@@ -1,17 +1,18 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { useActiveProfile, useProfileData } from "@/lib/store";
+import { BUILTIN_LESSONS } from "@/content/lessons";
 
 export const Route = createFileRoute("/app/progress")({
   component: Progress,
 });
 
-function Stat({ label, value }: { label: string; value: number | string }) {
+function Stat({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
   return (
     <div className="rounded-xl border bg-card p-5">
       <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="text-3xl mt-1 font-bold" style={{ color: "#000" }}>
-        {value}
-      </p>
+      <p className="text-3xl mt-1 font-bold" style={{ color: "#000" }}>{value}</p>
+      {sub && <p className="text-xs text-muted-foreground mt-1">{sub}</p>}
     </div>
   );
 }
@@ -20,58 +21,100 @@ function Progress() {
   const profile = useActiveProfile();
   const [data] = useProfileData(profile);
 
-  const vocabRes = data.results.filter((r) => r.type === "vocab");
-  const grammarRes = data.results.filter((r) => r.type === "grammar");
-  const avg = (arr: typeof vocabRes) =>
-    arr.length ? Math.round((arr.reduce((s, r) => s + r.score / r.total, 0) / arr.length) * 100) : 0;
+  const total = BUILTIN_LESSONS.length;
+
+  const stats = useMemo(() => {
+    let completed = 0;
+    let started = 0;
+    let quizSum = 0;
+    let quizCnt = 0;
+    let pretestSum = 0;
+    let pretestCnt = 0;
+    for (const l of BUILTIN_LESSONS) {
+      const p = data.lessonProgress[l.id];
+      if (!p) continue;
+      if (p.completedAt) completed++;
+      else if (p.startedAt) started++;
+      if (p.quizScore != null && p.quizTotal) {
+        quizSum += p.quizScore / p.quizTotal;
+        quizCnt++;
+      }
+      if (p.pretestScore != null && p.pretestTotal) {
+        pretestSum += p.pretestScore / p.pretestTotal;
+        pretestCnt++;
+      }
+    }
+    let known = 0;
+    let learning = 0;
+    for (const v of Object.values(data.wordStatus)) {
+      if (v === "known") known++;
+      else if (v === "learning") learning++;
+    }
+    return {
+      completed, started, known, learning,
+      quizAvg: quizCnt ? Math.round((quizSum / quizCnt) * 100) : 0,
+      preAvg: pretestCnt ? Math.round((pretestSum / pretestCnt) * 100) : 0,
+    };
+  }, [data.lessonProgress, data.wordStatus]);
+
+  const recent = useMemo(
+    () =>
+      BUILTIN_LESSONS
+        .map((l) => ({ l, p: data.lessonProgress[l.id] }))
+        .filter((x) => x.p?.completedAt || x.p?.startedAt)
+        .sort((a, b) => (b.p?.completedAt ?? b.p?.startedAt ?? 0) - (a.p?.completedAt ?? a.p?.startedAt ?? 0))
+        .slice(0, 10),
+    [data.lessonProgress],
+  );
+
+  const pct = Math.round((stats.completed / total) * 100);
 
   return (
     <div className="space-y-8">
       <header>
         <p className="text-sm text-muted-foreground capitalize">Profil: {profile}</p>
         <h1 className="text-3xl mt-1">Postępy</h1>
+        <p className="text-sm text-muted-foreground mt-2">
+          Bazuje na 50 wbudowanych lekcjach B1/B2.
+        </p>
       </header>
 
+      <div className="rounded-xl border bg-card p-5">
+        <div className="flex items-baseline justify-between mb-2">
+          <span className="text-sm text-muted-foreground">Ukończone lekcje</span>
+          <span className="text-sm font-medium">{stats.completed} / {total} ({pct}%)</span>
+        </div>
+        <div className="h-2 rounded-full bg-secondary overflow-hidden">
+          <div className="h-full bg-primary transition-all" style={{ width: `${pct}%` }} />
+        </div>
+      </div>
+
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Stat label="Ukończone lekcje" value={data.lessons.length} />
-        <Stat label="Słówka w bazie" value={data.words.length} />
-        <Stat label="Idiomy" value={data.idioms.length} />
-        <Stat label="Quizy ogółem" value={data.results.length} />
-        <Stat label="Średni wynik (słówka)" value={`${avg(vocabRes)}%`} />
-        <Stat label="Średni wynik (gramatyka)" value={`${avg(grammarRes)}%`} />
+        <Stat label="W toku" value={stats.started} />
+        <Stat label="Słówka znam" value={stats.known} />
+        <Stat label="Słówka uczę się" value={stats.learning} sub="w kolejce SRS" />
+        <Stat label="Pre-test śr." value={`${stats.preAvg}%`} />
+        <Stat label="Quiz końcowy śr." value={`${stats.quizAvg}%`} />
+        <Stat label="Streak" value={`${data.streak.current} dni`} sub={`Najdłuższy: ${data.streak.longest}`} />
       </div>
 
       <section>
-        <h2 className="text-xl mb-3">Ostatnie lekcje</h2>
-        {data.lessons.length === 0 ? (
-          <p className="text-muted-foreground">Brak ukończonych lekcji.</p>
+        <h2 className="text-xl mb-3">Ostatnio otwierane lekcje</h2>
+        {recent.length === 0 ? (
+          <p className="text-muted-foreground">Nie rozpoczęto żadnej lekcji. <Link to="/app/lessons" className="underline">Otwórz listę →</Link></p>
         ) : (
           <ul className="space-y-2">
-            {[...data.lessons].reverse().slice(0, 10).map((l) => (
-              <li key={l.id} className="rounded-lg border bg-card p-3 flex justify-between text-sm">
-                <span className="font-semibold">{l.topic}</span>
-                <span className="text-muted-foreground">
-                  {l.level} · {new Date(l.completedAt).toLocaleDateString()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section>
-        <h2 className="text-xl mb-3">Ostatnie wyniki</h2>
-        {data.results.length === 0 ? (
-          <p className="text-muted-foreground">Brak wyników quizów.</p>
-        ) : (
-          <ul className="space-y-2">
-            {[...data.results].reverse().slice(0, 10).map((r) => (
-              <li key={r.id} className="rounded-lg border bg-card p-3 flex justify-between text-sm">
-                <span className="font-semibold">
-                  {r.type === "vocab" ? "Powtórka słówek" : "Quiz gramatyczny"}
-                </span>
-                <span className="text-muted-foreground">
-                  {r.score}/{r.total} · {new Date(r.at).toLocaleDateString()}
+            {recent.map(({ l, p }) => (
+              <li key={l.id} className="rounded-lg border bg-card p-3 flex justify-between items-center gap-3 text-sm">
+                <Link to="/app/lessons/$id" params={{ id: l.id }} className="font-semibold hover:underline truncate">
+                  {l.topic}
+                </Link>
+                <span className="text-muted-foreground shrink-0">
+                  {l.level} ·{" "}
+                  {p?.completedAt
+                    ? `✓ ${new Date(p.completedAt).toLocaleDateString()}`
+                    : `w toku`}
+                  {p?.quizScore != null && ` · quiz ${p.quizScore}/${p.quizTotal}`}
                 </span>
               </li>
             ))}
