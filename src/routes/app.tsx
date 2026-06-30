@@ -103,6 +103,7 @@ function AppLayout() {
                   {p}
                 </button>
               ))}
+            </div>
           )}
           {profile && (
             <div className="mt-3 rounded-lg bg-secondary/60 px-3 py-2 text-xs">
