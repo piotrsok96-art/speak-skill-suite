@@ -26,6 +26,7 @@ import {
   Check,
   ChevronRight,
   Plus,
+  RotateCcw,
   Sparkles,
   X,
   CheckCircle2,
