@@ -329,11 +329,18 @@ function LessonDetail() {
         >
           <ArrowLeft className="h-4 w-4 mr-1" /> Lista lekcji
         </Link>
-        {progress?.completedAt && (
-          <span className="inline-flex items-center gap-1 text-sm text-green-600">
-            <CheckCircle2 className="h-4 w-4" /> Ukończona
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {progress?.completedAt && (
+            <span className="inline-flex items-center gap-1 text-sm text-green-600">
+              <CheckCircle2 className="h-4 w-4" /> Ukończona
+            </span>
+          )}
+          {(progress?.startedAt || progress?.completedAt) && (
+            <Button size="sm" variant="outline" onClick={resetLesson}>
+              <RotateCcw className="h-4 w-4" /> Zresetuj lekcję
+            </Button>
+          )}
+        </div>
       </div>
 
       <header className="border-b pb-4">
