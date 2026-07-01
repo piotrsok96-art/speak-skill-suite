@@ -380,7 +380,7 @@ function LessonDetail() {
         </div>
         {pretestOpen && (
           <PreTest
-            key={`pre-${lesson.id}`}
+            key={`pre-${lesson.id}-${pretestSeed}`}
             questions={pretestQs}
             onFinish={(correct, total) => {
               recordScore({ pretestScore: correct, pretestTotal: total });
