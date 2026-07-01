@@ -142,8 +142,13 @@ function normalize(d: Partial<ProfileData> | null | undefined): ProfileData {
     ...d,
     wordStatus: { ...base.wordStatus, ...(d.wordStatus ?? {}) },
     srs: { ...base.srs, ...(d.srs ?? {}) },
-    streak: { ...base.streak, ...(d.streak ?? {}) },
+    streak: {
+      ...base.streak,
+      ...(d.streak ?? {}),
+      history: { ...base.streak.history, ...(d.streak?.history ?? {}) },
+    },
     lessonProgress: { ...base.lessonProgress, ...(d.lessonProgress ?? {}) },
+    produceStats: { ...base.produceStats, ...(d.produceStats ?? {}) },
   };
 }
 
