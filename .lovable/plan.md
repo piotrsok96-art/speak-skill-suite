@@ -1,45 +1,81 @@
-## Co dodaję (funkcje 1, 2, 5, 12, 14)
+## Cel
 
-Numeracja z poprzedniej listy:
+Odpowiedź na 6 punktów: naturalna mowa, ocena CEFR, losowe quizy z tasowaniem, bogate wykresy postępów, aktywne przypominanie PL→EN, adaptacyjny silnik używający zebranych danych.
 
-1. **Fill-in-the-blank** — 5 zdań/lekcję z lukami, walidacja, podpowiedź (pierwsza litera).
-2. **PL → EN translation** — 5 zdań/lekcję, akceptujemy ≥1 poprawny wariant, normalizacja (case/spacja/interpunkcja), pokaż wzorzec po sprawdzeniu.
-5. **Extended Grammar + Common Mistakes** — każda lekcja: 2 zagadnienia gramatyczne z tabelką (forma, użycie, przykłady) + sekcja „Częste błędy Polaków" (3-5 par ❌/✅ z wyjaśnieniem).
-12. **Mixed daily review (SRS)** — powtórka dnia miesza typy kart: tłumaczenie EN↔PL, cloze (luka w przykładzie), wybór z 4 opcji. SM-2 nadal steruje harmonogramem.
-14. **Pre-test / Post-test** — na wejściu do lekcji krótki test (5 pytań). Wynik ≥80% → propozycja „Pomiń lekcję, oznacz jako opanowaną". Po lekcji post-test + scorecard (poprawa pre vs post).
+---
 
-## Plan implementacji
+### 1. Naturalna mowa (ElevenLabs TTS)
 
-### Treść (`src/content/lessons.ts` + generator)
-- Rozszerzenie typu `Lesson`: `fillBlanks`, `translations`, `grammar[] { topic, explanation, table, examples }`, `commonMistakes[] { wrong, right, note }`, `pretest` (5 pytań — losowane z `quiz`).
-- `scripts/gen_lessons.py`: dogeneruj nowe pola dla wszystkich 50 lekcji (paczki szablonowe per topic), regeneruj `lessons.ts`.
+- Podłączam konektor **ElevenLabs** (`ELEVENLABS_API_KEY`) — wysokiej jakości głosy neuronowe (Sarah, George, Charlie).
+- Nowa trasa `src/routes/api/public/tts.ts` (server route) — proxy do ElevenLabs, zwraca MP3 (streaming). Cache w `sessionStorage` po hashu tekstu, by nie generować dwa razy tego samego.
+- `src/lib/tts.ts` — nowa funkcja `speakNatural(text, voice?)`: pobiera MP3 z endpointu i odtwarza przez `Audio`. Fallback do Web Speech API gdy fetch padnie (offline / brak kredytów).
+- W ustawieniach profilu (sidebar) przełącznik **Głos: naturalny / systemowy** + wybór głosu (British male / female / American).
+- `SpeakButton` używa `speakNatural`. Loader spinner podczas fetch.
 
-### Komponenty (`src/components/`)
-- `FillBlank.tsx` — input + walidacja + „pokaż podpowiedź".
-- `TranslateBox.tsx` — textarea, akceptuje listę wariantów, normalizacja stringa.
-- `GrammarBlock.tsx` — render tabeli + przykładów + sekcji „Częste błędy".
-- `Scorecard.tsx` — podsumowanie: % słówek opanowanych, quiz, fill-blank, translation, delta pre→post, czas.
-- `MixedReviewCard.tsx` — uniwersalna karta dla SRS (typ: translate / cloze / choice).
+### 2. Ocena poziomu CEFR
 
-### Logika (`src/lib/`)
-- `normalize.ts` — `normalizeAnswer(s)` (lower, trim, strip końcowej interpunkcji, podwójne spacje).
-- `srs.ts` — `pickReviewMode(item)` (losowanie typu karty na bazie pola, na które user jest słabszy).
-- `store.ts` — `LessonProgress` dostaje pola: `pretestScore`, `posttestScore`, `fillBlankResults`, `translationResults`.
+- Nowy komponent `src/components/CefrEstimator.tsx` — liczy poziom na podstawie:
+  - średniej z quizów końcowych (waga 40%)
+  - liczby ukończonych lekcji vs pula (25%)
+  - % słówek "znam" spośród spotkanych (20%)
+  - jakości SRS: średni `ease` i `reps` (15%)
+- Progi: <30% = A2, 30-55% = B1, 55-80% = B1+/B2, >80% = B2+/C1.
+- Widoczne jako karta "Twój szacowany poziom" na `/app/progress` oraz na dashboardzie `/app/index`.
+- Dodatkowo pokazuje "punkty do następnego poziomu" (co należy zrobić).
 
-### Routes
-- `src/routes/app.lessons.$id.tsx` — przebudowa na sekcje: **Pre-test → Słówka → Idiomy → Dialogi → Gramatyka + Częste błędy → Fill-in-the-blank → Tłumaczenie PL→EN → Post-test → Scorecard**. Nawigacja przyciskami „Dalej", progress bar u góry.
-- `src/routes/app.srs.tsx` — użycie `MixedReviewCard` zamiast tylko fiszki.
+### 3. Losowe quizy + tasowanie
 
-### Bez zmian
-- Streak, TTS, słowniczek, store sync.
+Refaktor generowania quizów, tak by za każdym otwarciem lekcji były inne:
+- `src/lib/quiz-gen.ts` — nowy helper `buildLessonQuiz(lesson, seed)`:
+  - Losowe 12 pytań z pełnej puli: 6 słówek (spośród 25 głównych + extra), 5 gramatycznych (spośród 6 pytań GRAMMAR_QUIZ_POOL na temat), 1 idiom.
+  - Każde pytanie: tasowanie opcji (`shuffle`) i losowe generowanie dystraktorów słówkowych z całej lekcji.
+  - Seed = `Date.now()` przy starcie quizu → `Powtórz z innym zestawem`.
+- Analogicznie `buildPreTest(lesson)` — 6 innych pytań, non-overlap kontrolowany przez seed.
+- `src/routes/app.lessons.$id.tsx` — użyj `useMemo` z `quizSeed` z `useState`; przycisk "Losuj nowy" ponownie tasuje.
 
-## Szczegóły techniczne
+### 4. Wykresy postępu
 
-- **Normalizacja tłumaczeń**: `s.toLowerCase().trim().replace(/[.!?,;:]$/,'').replace(/\s+/g,' ')`. Każde zdanie ma 2-3 warianty docelowe.
-- **Pre-test threshold**: 4/5 = pomiń (z confirm dialogiem).
-- **Scorecard formuła**: `mastery = 0.4*quiz + 0.3*fillBlank + 0.2*translation + 0.1*vocabKnown`.
-- **Mixed SRS**: dla każdego `SrsItem` losujemy 1 z {translate EN→PL, translate PL→EN, cloze z `example`, multiple choice 4 opcji z dystraktorów z innych słów lekcji}. Wynik aktualizuje SM-2 (poprawne = quality 4, błędne = 2).
-- **Generator**: szablon zdań per topic (np. „I usually ___ to work" + answer „commute") — 5 fill-blanków i 5 par PL→EN per lekcja, deterministycznie z listy słówek lekcji.
+Instaluję `recharts` (już jest w shadcn `chart.tsx`) — używam istniejącej integracji.
+Rozbudowa `src/routes/app.progress.tsx`:
+- **Kalendarz streak** (`StreakCalendar.tsx`) — grid 12 tygodni × 7 dni w stylu GitHub contributions, kolor zależny od `todayCount` z historii (nowe pole `streakHistory: Record<'YYYY-MM-DD', number>` w `StreakState`).
+- **Wykres liniowy** — punkty z ostatnich 30 wyników quizów (`data.results`).
+- **Radar umiejętności** (`SkillRadar.tsx`) — 5 osi: Słownictwo, Gramatyka, Rozumienie, Idiomy, Powtórki (SRS ease). Wartości 0-100 wyliczane z danych.
+- **Bar chart** — pokrycie 20 zagadnień gramatycznych (średni wynik quizów per topic).
 
-## Zakres
-~8-10 nowych plików, edycja 3 routes + store + generator + regeneracja `lessons.ts` (duży plik). Po akceptacji robię wszystko w jednej iteracji.
+### 5. PL→EN (produktywne)
+
+- W SRS: nowy tryb `mode: 'produce'` — wyświetla PL, użytkownik pisze EN (fuzzy match: normalizacja, tolerancja literówek Levenshtein ≤ 2).
+- `src/routes/app.srs.tsx` — mieszanka trybów: 40% flash, 20% choice, 20% type EN, 20% **type PL→EN (produce)**.
+- Nowy komponent `ProduceCard.tsx` — pokazuje polskie tłumaczenie + wskazówki (pierwsza litera, liczba liter), pole tekstowe, sprawdzenie z podświetleniem różnic.
+- W lekcji: w sekcji Słówka drugi tryb fiszek "PL→EN" (przycisk toggle).
+- Statystyki oddzielne dla trybu produce → wpływa na radar (skala "Aktywne użycie").
+
+### 6. Silnik adaptacyjny
+
+- `src/lib/insights.ts` — nowy moduł: `computeInsights(data)` zwraca:
+  - **Słabe zagadnienia gramatyczne** (topic z najniższą średnią quizową).
+  - **Trudne słówka** (te z niskim `ease` w SRS lub wielokrotnie oblane produce).
+  - **Rekomendowana lekcja** — nieskończona lekcja pokrywająca najsłabszy topic.
+  - **"Tryb słabych punktów"** — sesja SRS ograniczona do items z ease < 2.0.
+- Nowa sekcja na dashboardzie `/app/index`: karty "Twoja słaba strona: Present Perfect →", "5 słówek do dopracowania →", "Polecane: Lekcja 23 →".
+- W SRS: przycisk **"Trenuj słabe punkty (12 items)"**.
+- W lekcji: jeśli pretestScore ≥ 80%, banner "Znasz to — pomiń do quizu?".
+
+---
+
+### Kolejność implementacji
+
+1. TTS ElevenLabs (konektor + endpoint + integracja) — pkt 1
+2. Losowe quizy + PL→EN produce (nowe komponenty) — pkt 3, 5
+3. Insights + adaptive suggestions — pkt 6
+4. CefrEstimator + rozbudowa progress z wykresami/kalendarzem/radarem — pkt 2, 4
+
+### Uwagi techniczne
+
+- `streakHistory` wymaga migracji danych w `normalize()` (backward compat — pusty domyślny obiekt).
+- `recharts` już jest w projekcie (shadcn chart).
+- Fuzzy match dla PL→EN: prosta implementacja Levenshteina w `src/lib/fuzzy.ts`.
+- ElevenLabs — cache MP3 blobs w IndexedDB (kluczem hash SHA1 tekstu+voice), by nie palić kredytów.
+- Wszystko po stronie klienta korzysta z `useProfileData`, więc auto-sync do chmury działa bez zmian.
+
+Czy zatwierdzasz? Mogę też okroić zakres, jeśli wolisz zacząć od 2-3 najważniejszych punktów.
