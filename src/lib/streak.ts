@@ -10,7 +10,7 @@ function yesterdayOf(day: string): string {
 /** Call when the user performs a learning action. Returns new streak state. */
 export function bumpStreak(prev: StreakState, increment = 1): StreakState {
   const today = todayKey();
-  const s: StreakState = { ...prev };
+  const s: StreakState = { ...prev, history: { ...(prev.history ?? {}) } };
 
   // Reset daily counter if new day
   if (s.todayDay !== today) {
@@ -19,6 +19,7 @@ export function bumpStreak(prev: StreakState, increment = 1): StreakState {
   }
 
   s.todayCount += increment;
+  s.history[today] = (s.history[today] ?? 0) + increment;
 
   // Update streak only the first time today
   if (s.lastActiveDay !== today) {

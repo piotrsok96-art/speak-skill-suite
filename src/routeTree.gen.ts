@@ -22,6 +22,7 @@ import { Route as AppGrammarQuizRouteImport } from './routes/app.grammar-quiz'
 import { Route as AppDictionaryRouteImport } from './routes/app.dictionary'
 import { Route as AppLessonsIndexRouteImport } from './routes/app.lessons.index'
 import { Route as AppLessonsIdRouteImport } from './routes/app.lessons.$id'
+import { Route as ApiPublicTtsRouteImport } from './routes/api/public/tts'
 
 const AppRoute = AppRouteImport.update({
   id: '/app',
@@ -88,6 +89,11 @@ const AppLessonsIdRoute = AppLessonsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => AppLessonsRoute,
 } as any)
+const ApiPublicTtsRoute = ApiPublicTtsRouteImport.update({
+  id: '/api/public/tts',
+  path: '/api/public/tts',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -101,6 +107,7 @@ export interface FileRoutesByFullPath {
   '/app/srs': typeof AppSrsRoute
   '/app/vocab-review': typeof AppVocabReviewRoute
   '/app/': typeof AppIndexRoute
+  '/api/public/tts': typeof ApiPublicTtsRoute
   '/app/lessons/$id': typeof AppLessonsIdRoute
   '/app/lessons/': typeof AppLessonsIndexRoute
 }
@@ -114,6 +121,7 @@ export interface FileRoutesByTo {
   '/app/srs': typeof AppSrsRoute
   '/app/vocab-review': typeof AppVocabReviewRoute
   '/app': typeof AppIndexRoute
+  '/api/public/tts': typeof ApiPublicTtsRoute
   '/app/lessons/$id': typeof AppLessonsIdRoute
   '/app/lessons': typeof AppLessonsIndexRoute
 }
@@ -130,6 +138,7 @@ export interface FileRoutesById {
   '/app/srs': typeof AppSrsRoute
   '/app/vocab-review': typeof AppVocabReviewRoute
   '/app/': typeof AppIndexRoute
+  '/api/public/tts': typeof ApiPublicTtsRoute
   '/app/lessons/$id': typeof AppLessonsIdRoute
   '/app/lessons/': typeof AppLessonsIndexRoute
 }
@@ -147,6 +156,7 @@ export interface FileRouteTypes {
     | '/app/srs'
     | '/app/vocab-review'
     | '/app/'
+    | '/api/public/tts'
     | '/app/lessons/$id'
     | '/app/lessons/'
   fileRoutesByTo: FileRoutesByTo
@@ -160,6 +170,7 @@ export interface FileRouteTypes {
     | '/app/srs'
     | '/app/vocab-review'
     | '/app'
+    | '/api/public/tts'
     | '/app/lessons/$id'
     | '/app/lessons'
   id:
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/app/srs'
     | '/app/vocab-review'
     | '/app/'
+    | '/api/public/tts'
     | '/app/lessons/$id'
     | '/app/lessons/'
   fileRoutesById: FileRoutesById
@@ -182,6 +194,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
+  ApiPublicTtsRoute: typeof ApiPublicTtsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -277,6 +290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLessonsIdRouteImport
       parentRoute: typeof AppLessonsRoute
     }
+    '/api/public/tts': {
+      id: '/api/public/tts'
+      path: '/api/public/tts'
+      fullPath: '/api/public/tts'
+      preLoaderRoute: typeof ApiPublicTtsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -323,6 +343,7 @@ const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
+  ApiPublicTtsRoute: ApiPublicTtsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

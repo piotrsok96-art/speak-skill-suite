@@ -17,6 +17,8 @@ import { TranslateBox } from "@/components/TranslateBox";
 import { GrammarBlock } from "@/components/GrammarBlock";
 import { Scorecard } from "@/components/Scorecard";
 import { PreTest } from "@/components/PreTest";
+import { buildLessonQuiz, buildPreTest } from "@/lib/quiz-gen";
+import type { BuiltinQuizQ } from "@/content/lessons";
 import { Button } from "@/components/ui/button";
 import { scheduleNew } from "@/lib/srs";
 import { withStreakBump } from "@/lib/streak";
@@ -318,7 +320,8 @@ function LessonDetail() {
   const allVocab = [...lesson.vocab, ...(extraVocabShown ? lesson.extraVocab : [])];
   const allIdioms = [...lesson.idioms, ...(extraIdiomsShown ? lesson.extraIdioms : [])];
 
-  const pretestQs = useMemo(() => lesson.pretest ?? lesson.quiz.slice(0, 5), [lesson]);
+  const [pretestSeed, setPretestSeed] = useState(() => Date.now());
+  const pretestQs = useMemo(() => buildPreTest(lesson, pretestSeed), [lesson, pretestSeed]);
 
   return (
     <article className="space-y-8">
@@ -370,14 +373,14 @@ function LessonDetail() {
             </p>
           </div>
           {!pretestOpen && (
-            <Button variant="outline" onClick={() => setPretestOpen(true)}>
-              {progress?.pretestScore != null ? "Powtórz pre-test" : "Rozpocznij"}
+            <Button variant="outline" onClick={() => { setPretestSeed(Date.now()); setPretestOpen(true); }}>
+              {progress?.pretestScore != null ? "Nowy pre-test" : "Rozpocznij"}
             </Button>
           )}
         </div>
         {pretestOpen && (
           <PreTest
-            key={`pre-${lesson.id}`}
+            key={`pre-${lesson.id}-${pretestSeed}`}
             questions={pretestQs}
             onFinish={(correct, total) => {
               recordScore({ pretestScore: correct, pretestTotal: total });
@@ -583,39 +586,18 @@ function LessonDetail() {
       <Scorecard progress={progress} />
 
       {/* QUIZ */}
-      <section className="rounded-xl border bg-card p-5">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h2 className="text-xl flex items-center gap-2">
-              <Sparkles className="h-5 w-5" /> Quiz końcowy (post-test)
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              10 pytań: słówka, idiomy, gramatyka.{" "}
-              {progress?.quizScore != null && (
-                <span className="text-foreground font-medium">
-                  Poprzedni wynik: {progress.quizScore}/{progress.quizTotal}
-                </span>
-              )}
-            </p>
-          </div>
-          <Button size="lg" onClick={() => setQuizOpen((v) => !v)}>
-            {quizOpen ? "Schowaj quiz" : "Sprawdź się"}
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+      <QuizSection
+        lesson={lesson}
+        quizOpen={quizOpen}
+        setQuizOpen={setQuizOpen}
+        progress={progress}
+        onFinish={(score) => {
+          completeLesson(score);
+          setQuizOpen(false);
+          navigate({ to: "/app/lessons" });
+        }}
+      />
 
-        {quizOpen && (
-          <LessonQuiz
-            key={lesson.id}
-            lesson={lesson}
-            onFinish={(score) => {
-              completeLesson(score);
-              setQuizOpen(false);
-              navigate({ to: "/app/lessons" });
-            }}
-          />
-        )}
-      </section>
 
       {!progress?.completedAt && (
         <div className="flex justify-end">
@@ -659,28 +641,82 @@ function DialogView({ dialog }: { dialog: BuiltinDialog }) {
   );
 }
 
-function LessonQuiz({
+function QuizSection({
   lesson,
+  quizOpen,
+  setQuizOpen,
+  progress,
   onFinish,
 }: {
   lesson: BuiltinLesson;
+  quizOpen: boolean;
+  setQuizOpen: (b: boolean) => void;
+  progress?: LessonProgress;
+  onFinish: (score: { correct: number; total: number }) => void;
+}) {
+  const [seed, setSeed] = useState(() => Date.now());
+  const questions = useMemo(() => buildLessonQuiz(lesson, seed), [lesson, seed]);
+  return (
+    <section className="rounded-xl border bg-card p-5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-xl flex items-center gap-2">
+            <Sparkles className="h-5 w-5" /> Quiz końcowy (post-test)
+          </h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            {questions.length} pytań generowanych losowo (mieszane opcje).{" "}
+            {progress?.quizScore != null && (
+              <span className="text-foreground font-medium">
+                Poprzedni wynik: {progress.quizScore}/{progress.quizTotal}
+              </span>
+            )}
+          </p>
+        </div>
+        <Button
+          size="lg"
+          onClick={() => {
+            if (!quizOpen) setSeed(Date.now());
+            setQuizOpen(!quizOpen);
+          }}
+        >
+          {quizOpen ? "Schowaj quiz" : "Sprawdź się"}
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {quizOpen && (
+        <LessonQuiz
+          key={`${lesson.id}-${seed}`}
+          questions={questions}
+          onFinish={onFinish}
+        />
+      )}
+    </section>
+  );
+}
+
+function LessonQuiz({
+  questions,
+  onFinish,
+}: {
+  questions: BuiltinQuizQ[];
   onFinish: (score: { correct: number; total: number }) => void;
 }) {
   const [idx, setIdx] = useState(0);
   const [picked, setPicked] = useState<number | null>(null);
   const [correctCount, setCorrectCount] = useState(0);
-  const q = lesson.quiz[idx];
+  const q = questions[idx];
 
   if (!q) {
     return (
       <div className="mt-4 text-center py-6">
         <p className="text-2xl font-bold" style={{ color: "#000" }}>
-          {correctCount} / {lesson.quiz.length}
+          {correctCount} / {questions.length}
         </p>
         <p className="text-sm text-muted-foreground mt-1">Świetnie!</p>
         <Button
           className="mt-4"
-          onClick={() => onFinish({ correct: correctCount, total: lesson.quiz.length })}
+          onClick={() => onFinish({ correct: correctCount, total: questions.length })}
         >
           Zapisz wynik i zakończ
         </Button>
@@ -694,7 +730,7 @@ function LessonQuiz({
     <div className="mt-5 space-y-3">
       <div className="flex items-center justify-between text-sm text-muted-foreground">
         <span>
-          Pytanie {idx + 1} z {lesson.quiz.length}
+          Pytanie {idx + 1} z {questions.length}
         </span>
         <span>Wynik: {correctCount}</span>
       </div>
@@ -742,7 +778,7 @@ function LessonQuiz({
               setIdx((i) => i + 1);
             }}
           >
-            {idx + 1 === lesson.quiz.length ? "Zobacz wynik" : "Dalej"}{" "}
+            {idx + 1 === questions.length ? "Zobacz wynik" : "Dalej"}{" "}
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>

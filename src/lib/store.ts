@@ -73,6 +73,12 @@ export interface StreakState {
   dailyGoal: number;
   todayCount: number;
   todayDay: string;
+  history: Record<string, number>; // YYYY-MM-DD -> actions
+}
+
+export interface ProduceStats {
+  correct: number;
+  total: number;
 }
 
 export interface LessonProgress {
@@ -101,6 +107,7 @@ export interface ProfileData {
   srs: Record<string, SrsItem>;
   streak: StreakState;
   lessonProgress: Record<string, LessonProgress>;
+  produceStats: ProduceStats;
   customLessons?: unknown[];
 }
 
@@ -111,6 +118,7 @@ const defaultStreak = (): StreakState => ({
   dailyGoal: 20,
   todayCount: 0,
   todayDay: "",
+  history: {},
 });
 
 const empty = (): ProfileData => ({
@@ -123,6 +131,7 @@ const empty = (): ProfileData => ({
   srs: {},
   streak: defaultStreak(),
   lessonProgress: {},
+  produceStats: { correct: 0, total: 0 },
 });
 
 function normalize(d: Partial<ProfileData> | null | undefined): ProfileData {
@@ -133,8 +142,13 @@ function normalize(d: Partial<ProfileData> | null | undefined): ProfileData {
     ...d,
     wordStatus: { ...base.wordStatus, ...(d.wordStatus ?? {}) },
     srs: { ...base.srs, ...(d.srs ?? {}) },
-    streak: { ...base.streak, ...(d.streak ?? {}) },
+    streak: {
+      ...base.streak,
+      ...(d.streak ?? {}),
+      history: { ...base.streak.history, ...(d.streak?.history ?? {}) },
+    },
     lessonProgress: { ...base.lessonProgress, ...(d.lessonProgress ?? {}) },
+    produceStats: { ...base.produceStats, ...(d.produceStats ?? {}) },
   };
 }
 
