@@ -73,6 +73,12 @@ export interface StreakState {
   dailyGoal: number;
   todayCount: number;
   todayDay: string;
+  history: Record<string, number>; // YYYY-MM-DD -> actions
+}
+
+export interface ProduceStats {
+  correct: number;
+  total: number;
 }
 
 export interface LessonProgress {
