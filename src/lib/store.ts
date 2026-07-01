@@ -107,6 +107,7 @@ export interface ProfileData {
   srs: Record<string, SrsItem>;
   streak: StreakState;
   lessonProgress: Record<string, LessonProgress>;
+  produceStats: ProduceStats;
   customLessons?: unknown[];
 }
 
@@ -117,6 +118,7 @@ const defaultStreak = (): StreakState => ({
   dailyGoal: 20,
   todayCount: 0,
   todayDay: "",
+  history: {},
 });
 
 const empty = (): ProfileData => ({
@@ -129,6 +131,7 @@ const empty = (): ProfileData => ({
   srs: {},
   streak: defaultStreak(),
   lessonProgress: {},
+  produceStats: { correct: 0, total: 0 },
 });
 
 function normalize(d: Partial<ProfileData> | null | undefined): ProfileData {
