@@ -17,6 +17,8 @@ import { TranslateBox } from "@/components/TranslateBox";
 import { GrammarBlock } from "@/components/GrammarBlock";
 import { Scorecard } from "@/components/Scorecard";
 import { PreTest } from "@/components/PreTest";
+import { buildLessonQuiz, buildPreTest } from "@/lib/quiz-gen";
+import type { BuiltinQuizQ } from "@/content/lessons";
 import { Button } from "@/components/ui/button";
 import { scheduleNew } from "@/lib/srs";
 import { withStreakBump } from "@/lib/streak";
@@ -318,7 +320,8 @@ function LessonDetail() {
   const allVocab = [...lesson.vocab, ...(extraVocabShown ? lesson.extraVocab : [])];
   const allIdioms = [...lesson.idioms, ...(extraIdiomsShown ? lesson.extraIdioms : [])];
 
-  const pretestQs = useMemo(() => lesson.pretest ?? lesson.quiz.slice(0, 5), [lesson]);
+  const [pretestSeed, setPretestSeed] = useState(() => Date.now());
+  const pretestQs = useMemo(() => buildPreTest(lesson, pretestSeed), [lesson, pretestSeed]);
 
   return (
     <article className="space-y-8">
@@ -370,8 +373,8 @@ function LessonDetail() {
             </p>
           </div>
           {!pretestOpen && (
-            <Button variant="outline" onClick={() => setPretestOpen(true)}>
-              {progress?.pretestScore != null ? "Powtórz pre-test" : "Rozpocznij"}
+            <Button variant="outline" onClick={() => { setPretestSeed(Date.now()); setPretestOpen(true); }}>
+              {progress?.pretestScore != null ? "Nowy pre-test" : "Rozpocznij"}
             </Button>
           )}
         </div>
