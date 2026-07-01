@@ -778,7 +778,7 @@ function LessonQuiz({
               setIdx((i) => i + 1);
             }}
           >
-            {idx + 1 === lesson.quiz.length ? "Zobacz wynik" : "Dalej"}{" "}
+            {idx + 1 === questions.length ? "Zobacz wynik" : "Dalej"}{" "}
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
